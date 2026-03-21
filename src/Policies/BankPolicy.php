@@ -1,0 +1,41 @@
+<?php
+
+namespace Boi\Backend\Policies;
+
+class BankPolicy
+{
+    public function viewAny(): bool
+    {
+        return true;
+    }
+
+    public function view(): bool
+    {
+        return true;
+    }
+
+    public function create(): bool
+    {
+        return true;
+    }
+
+    public function update(): bool
+    {
+        return true;
+    }
+
+    public function delete(): bool
+    {
+        return true;
+    }
+
+    public function restore(): bool
+    {
+        return true;
+    }
+
+    public function forceDelete(): bool
+    {
+        return true;
+    }
+}

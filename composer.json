@@ -1,0 +1,51 @@
+{
+    "name": "boi/boi-backend",
+    "description": "BOI Laravel backend package",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "BOI",
+            "email": "dev@example.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/database": "^11.0|^12.0|^13.0",
+        "illuminate/filesystem": "^11.0|^12.0|^13.0",
+        "illuminate/http": "^11.0|^12.0|^13.0",
+        "illuminate/routing": "^11.0|^12.0|^13.0",
+        "illuminate/support": "^11.0|^12.0|^13.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0|^10.0",
+        "pestphp/pest": "^3.0",
+        "phpunit/phpunit": "^11.0 <11.5.51"
+    },
+    "autoload": {
+        "psr-4": {
+            "Boi\\Backend\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Boi\\Backend\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Boi\\Backend\\BoiBackendServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "pest"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
+        "sort-packages": true
+    },
+    "minimum-stability": "stable"
+}
