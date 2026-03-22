@@ -1,0 +1,7 @@
+# Slimmer Composer dist archives (git export / --prefer-dist)
+/tests export-ignore
+/.gitattributes export-ignore
+/phpunit.xml export-ignore
+/phpunit.xml.dist export-ignore
+/pest.xml export-ignore
+/.editorconfig export-ignore

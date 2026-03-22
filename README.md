@@ -48,3 +48,24 @@ See **[`doc/`](doc/README.md)** — Nova resources and `Gate::policy` are **per 
 composer install
 composer test
 ```
+
+## Releasing (`boi/boi-backend`)
+
+1. Merge changes to `main` and ensure `composer test` passes.
+2. Tag a semver release (Composer / Packagist use the tag, not a `version` field in `composer.json`):
+
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+3. **Packagist** (optional): submit [`https://github.com/BuzzTechnics/boi-backend`](https://github.com/BuzzTechnics/boi-backend) once; future tags are picked up automatically.
+4. **Consumers** (e.g. `boi-api`): require `"boi/boi-backend": "^0.1@dev"` while `main` has no stable tag yet (`@dev` allows the `0.1.x-dev` alias; with `prefer-stable`, Composer uses **`v0.1.0` once it exists**). After the first tag, you may switch to `"^0.1"` if you want stable-only installs. Add a VCS repository only if the package is not on Packagist:
+
+   ```json
+   "repositories": [
+       { "type": "vcs", "url": "https://github.com/BuzzTechnics/boi-backend.git" }
+   ]
+   ```
+
+   If `../boi-backend` exists as a sibling checkout, a **path** repository (as in `boi-api`) keeps local development on a symlinked copy.

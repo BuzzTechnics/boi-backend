@@ -1,7 +1,20 @@
 {
     "name": "boi/boi-backend",
     "description": "BOI Laravel backend package",
+    "type": "library",
     "license": "MIT",
+    "keywords": [
+        "laravel",
+        "boi",
+        "bank-statements",
+        "edoc",
+        "proxy"
+    ],
+    "homepage": "https://github.com/BuzzTechnics/boi-backend",
+    "support": {
+        "issues": "https://github.com/BuzzTechnics/boi-backend/issues",
+        "source": "https://github.com/BuzzTechnics/boi-backend"
+    },
     "authors": [
         {
             "name": "BOI",
@@ -32,6 +45,9 @@
         }
     },
     "extra": {
+        "branch-alias": {
+            "dev-main": "0.1.x-dev"
+        },
         "laravel": {
             "providers": [
                 "Boi\\Backend\\BoiBackendServiceProvider"
