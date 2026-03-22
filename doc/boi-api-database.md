@@ -40,7 +40,7 @@ Behavior:
 
 ## Config file in the app
 
-The package **merges** `vendor/boi/boi-backend/config/boi_api.php` on boot. You **do not** need a duplicate `config/boi_api.php` in the app unless you want to override keys; use **`.env`** for normal cases.
+The package **merges** `vendor/buzztech/boi-backend/config/boi_api.php` on boot. You **do not** need a duplicate `config/boi_api.php` in the app unless you want to override keys; use **`.env`** for normal cases.
 
 Publish override (optional):
 

@@ -40,7 +40,7 @@ Path `../boi-backend` **won’t exist**. Pick one:
 
 | Approach | When to use |
 |----------|-------------|
-| **Private Git + VCS repo** in Glow’s `composer.json` | Most teams: tag `boi-backend`, `composer require boi/boi-backend:^x.y` from Git URL. |
+| **Private Git + VCS repo** in Glow’s `composer.json` | Most teams: tag `boi-backend`, `composer require buzztech/boi-backend:^x.y` from Git URL. |
 | **Monorepo deploy** | Build image / checkout that includes both `glow/` and `boi-backend/` and keep path repo. |
 | **Private Packagist / Satis** | Same as Git tags but served through Composer repo metadata. |
 

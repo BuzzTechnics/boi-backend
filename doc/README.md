@@ -1,6 +1,6 @@
 # boi-backend documentation
 
-Guides for teams integrating **`boi/boi-backend`** into Laravel apps (Glow, portals, internal tools).
+Guides for teams integrating **`buzztech/boi-backend`** into Laravel apps (Glow, portals, internal tools).
 
 | Doc | What it covers |
 |-----|----------------|

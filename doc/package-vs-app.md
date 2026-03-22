@@ -2,7 +2,7 @@
 
 `boi-backend` is shared code. Each product (Glow, portal, …) is still its own Laravel app with its own UX, auth, and admin.
 
-## In the package (`boi/boi-backend`)
+## In the package (`buzztech/boi-backend`)
 
 | Area | Purpose |
 |------|---------|
