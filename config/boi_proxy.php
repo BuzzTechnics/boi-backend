@@ -22,6 +22,11 @@ return [
     /** Short slug for this product (stored on bank_statements.app upstream), e.g. glow, portal */
     'app' => (string) env('BOI_APP', 'app'),
 
+    /**
+     * URL segment for bank-statement routes on boi-api (must match EDOC_BANK_STATEMENTS_PATH there).
+     */
+    'bank_statements_path' => (string) env('BOI_API_BANK_STATEMENTS_PATH', 'loan-applications'),
+
     /*
     |--------------------------------------------------------------------------
     | Path validation — proxied path must start with this (e.g. api/)
