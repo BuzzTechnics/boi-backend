@@ -28,6 +28,10 @@ final class FileController extends Controller
             's3'
         );
 
+        if (! is_string($path) || $path === '') {
+            return response()->json(['success' => false, 'message' => 'Upload failed: empty storage path'], 500);
+        }
+
         $s3 = Storage::disk('s3');
         $url = method_exists($s3, 'temporaryUrl')
             ? $s3->temporaryUrl($path, now()->addMinutes(5))
@@ -42,7 +46,13 @@ final class FileController extends Controller
 
     public function view(Request $request)
     {
-        $path = $request->validate(['path' => 'required|string'])['path'];
+        $path = trim((string) $request->validate([
+            'path' => ['required', 'string', 'min:1', 'max:4096'],
+        ])['path']);
+
+        if ($path === '') {
+            abort(422, 'Path is required');
+        }
 
         try {
             $s3 = Storage::disk('s3');
