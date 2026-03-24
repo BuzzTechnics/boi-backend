@@ -6,27 +6,39 @@ use Closure;
 use Illuminate\Http\Request;
 
 /**
- * Restricts API requests to the app URL's host (referer/origin) and validates BVN/NIN token flow.
+ * Restricts API requests so Referer/Origin match this request's host (not only APP_URL),
+ * and validates BVN/NIN token flow.
  */
 final class TrustedSources
 {
     public function handle(Request $request, Closure $next)
     {
-        $allowedDomain = parse_url((string) config('app.url'), PHP_URL_HOST);
+        $trustedHost = $this->trustedHost($request);
         $referer = $request->headers->get('referer');
         $origin = $request->headers->get('origin');
 
-        if ($referer && parse_url($referer, PHP_URL_HOST) !== $allowedDomain) {
-            return response()->json(['error' => 'Unauthorized.'], 403);
+        if ($referer) {
+            $refererHost = parse_url($referer, PHP_URL_HOST);
+            if ($refererHost === null || $refererHost === false || $refererHost === '') {
+                return response()->json(['error' => 'Unauthorized.'], 403);
+            }
+            if (strcasecmp((string) $refererHost, $trustedHost) !== 0) {
+                return response()->json(['error' => 'Unauthorized.'], 403);
+            }
         }
 
-        if ($origin && parse_url($origin, PHP_URL_HOST) !== $allowedDomain) {
-            return response()->json(['error' => 'Unauthorized.'], 403);
+        if ($origin) {
+            $originHost = parse_url($origin, PHP_URL_HOST);
+            if ($originHost === null || $originHost === false || $originHost === '') {
+                return response()->json(['error' => 'Unauthorized.'], 403);
+            }
+            if (strcasecmp((string) $originHost, $trustedHost) !== 0) {
+                return response()->json(['error' => 'Unauthorized.'], 403);
+            }
         }
 
         if (! $referer && ! $origin) {
             // Same-origin axios/fetch often omits Origin; Referer may be stripped (Referrer-Policy).
-            // Trust Sec-Fetch-Site (Chromium) or a Sanctum SPA CSRF header instead.
             $secFetchSite = $request->headers->get('Sec-Fetch-Site');
             if (in_array($secFetchSite, ['same-origin', 'same-site'], true)) {
                 return $next($request);
@@ -47,5 +59,20 @@ final class TrustedSources
         }
 
         return $next($request);
+    }
+
+    /**
+     * Host the client is actually talking to (avoids APP_URL vs real URL mismatches: http/https, www, Herd, etc.).
+     */
+    private function trustedHost(Request $request): string
+    {
+        $host = $request->getHost();
+        if ($host !== '') {
+            return $host;
+        }
+
+        $fromConfig = parse_url((string) config('app.url'), PHP_URL_HOST);
+
+        return is_string($fromConfig) && $fromConfig !== '' ? $fromConfig : '';
     }
 }
