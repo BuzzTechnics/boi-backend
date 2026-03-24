@@ -1,6 +1,7 @@
 {
     "name": "buzztech/boi-backend",
     "description": "BOI Laravel backend package",
+    "version": "0.2.12",
     "type": "library",
     "license": "MIT",
     "keywords": [

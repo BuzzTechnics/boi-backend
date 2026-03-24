@@ -36,7 +36,7 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Route registration (use BoiBackend::proxyRoute() inside your middleware group)
+    | Route registration (BoiBackendServiceProvider registers this unless disabled)
     |--------------------------------------------------------------------------
     */
     'route_template' => 'api/boi-api/{path}',

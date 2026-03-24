@@ -2,6 +2,8 @@
 
 namespace Boi\Backend;
 
+use Boi\Backend\Http\Middleware\TrustedSources;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -11,6 +13,7 @@ class BoiBackendServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->mergeConfigFrom(__DIR__.'/../config/boi_backend.php', 'boi_backend');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_proxy.php', 'boi_proxy');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_api.php', 'boi_api');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_edoc.php', 'boi_edoc');
@@ -21,6 +24,10 @@ class BoiBackendServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../config/banks.php' => config_path('banks.php'),
         ], 'boi-backend-config');
+
+        $this->publishes([
+            __DIR__.'/../config/boi_backend.php' => config_path('boi_backend.php'),
+        ], 'boi-backend');
 
         $this->publishes([
             __DIR__.'/../config/boi_proxy.php' => config_path('boi_proxy.php'),
@@ -35,5 +42,67 @@ class BoiBackendServiceProvider extends ServiceProvider
         ], 'boi-backend-edoc');
 
         $this->mergeConfigFrom(__DIR__.'/../config/banks.php', 'banks');
+
+        $this->app->booted(function (): void {
+            $this->registerPackageRoutes();
+        });
+    }
+
+    /**
+     * Registers all package HTTP routes unless {@see config('boi_backend.register_routes')} is false.
+     */
+    private function registerPackageRoutes(): void
+    {
+        if (! config('boi_backend.register_routes', true)) {
+            return;
+        }
+
+        Route::middleware($this->proxyMiddleware())
+            ->group(function (): void {
+                BoiBackend::proxyRoute();
+            });
+
+        Route::middleware($this->apiMiddleware())
+            ->prefix('api')
+            ->group(function (): void {
+                BoiBackend::fileRoutes([]);
+            });
+    }
+
+    /**
+     * @return array<int, string|\Closure>
+     */
+    private function proxyMiddleware(): array
+    {
+        $middleware = [
+            'web',
+            'auth:sanctum',
+        ];
+
+        if (class_exists('Laravel\\Jetstream\\Http\\Middleware\\AuthenticateSession')) {
+            $middleware[] = 'Laravel\\Jetstream\\Http\\Middleware\\AuthenticateSession';
+        }
+
+        if (class_exists('Laravel\\Jetstream\\Jetstream')) {
+            $middleware[] = 'verified';
+        }
+
+        return array_merge($middleware, (array) config('boi_backend.extra_proxy_middleware', []));
+    }
+
+    /**
+     * @return array<int, string|\Closure>
+     */
+    private function apiMiddleware(): array
+    {
+        $middleware = ['api'];
+
+        if (class_exists('Laravel\\Jetstream\\Http\\Middleware\\AuthenticateSession')) {
+            $middleware[] = 'Laravel\\Jetstream\\Http\\Middleware\\AuthenticateSession';
+        }
+
+        $middleware[] = TrustedSources::class;
+
+        return array_merge($middleware, (array) config('boi_backend.extra_api_middleware', []));
     }
 }
