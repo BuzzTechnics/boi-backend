@@ -25,6 +25,16 @@ final class TrustedSources
         }
 
         if (! $referer && ! $origin) {
+            // Same-origin axios/fetch often omits Origin; Referer may be stripped (Referrer-Policy).
+            // Trust Sec-Fetch-Site (Chromium) or a Sanctum SPA CSRF header instead.
+            $secFetchSite = $request->headers->get('Sec-Fetch-Site');
+            if (in_array($secFetchSite, ['same-origin', 'same-site'], true)) {
+                return $next($request);
+            }
+            if ($request->headers->has('X-XSRF-TOKEN')) {
+                return $next($request);
+            }
+
             return response()->json(['error' => 'Unauthorized.'], 403);
         }
 
