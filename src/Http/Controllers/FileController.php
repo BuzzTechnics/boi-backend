@@ -27,16 +27,17 @@ final class FileController extends Controller
 
         $folder = $request->input('folder', config('boi_files.default_folder', 'documents'));
 
-        $path = FileService::storeFile($request->file('file'), $folder, 's3');
+        $disk = $this->resolveFileDisk();
+        $path = FileService::storeFile($request->file('file'), $folder, $disk);
 
         if (! is_string($path) || $path === '') {
             return response()->json(['success' => false, 'message' => 'Upload failed: empty storage path'], 500);
         }
 
-        $s3 = Storage::disk('s3');
-        $url = method_exists($s3, 'temporaryUrl')
-            ? $s3->temporaryUrl($path, now()->addMinutes(5))
-            : $s3->url($path);
+        $storage = Storage::disk($disk);
+        $url = method_exists($storage, 'temporaryUrl')
+            ? $storage->temporaryUrl($path, now()->addMinutes(5))
+            : $storage->url($path);
 
         return response()->json([
             'success' => true,
@@ -55,15 +56,37 @@ final class FileController extends Controller
             abort(422, 'Path is required');
         }
 
-        $s3 = Storage::disk('s3');
-        if (! $s3->exists($path)) {
+        $storage = Storage::disk($this->resolveFileDisk());
+        if (! $storage->exists($path)) {
             abort(404, 'File not found');
         }
 
-        $url = method_exists($s3, 'temporaryUrl')
-            ? $s3->temporaryUrl($path, now()->addMinutes(5))
-            : $s3->url($path);
+        $url = method_exists($storage, 'temporaryUrl')
+            ? $storage->temporaryUrl($path, now()->addMinutes(5))
+            : $storage->url($path);
 
         return redirect($url);
+    }
+
+    /**
+     * Disk for package file routes: explicit BOI_FILES_DISK, else S3 when configured,
+     * else S3 outside local (tests use Storage::fake('s3')), else public for local dev without AWS.
+     */
+    private function resolveFileDisk(): string
+    {
+        $explicit = config('boi_files.disk');
+        if (is_string($explicit) && $explicit !== '') {
+            return $explicit;
+        }
+
+        if ((string) config('filesystems.disks.s3.bucket', '') !== '') {
+            return 's3';
+        }
+
+        if (! app()->environment('local')) {
+            return 's3';
+        }
+
+        return 'public';
     }
 }

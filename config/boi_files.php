@@ -4,6 +4,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Filesystem disk for uploads (see FileController, FileService)
+    |--------------------------------------------------------------------------
+    |
+    | When null/empty, the package picks: s3 if AWS_BUCKET is set, or s3 outside
+    | the local environment (tests use Storage::fake('s3')), else "public" in local
+    | when the bucket is empty (dev without AWS).
+    |
+    */
+    'disk' => env('BOI_FILES_DISK'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Default S3 key prefix for uploads (host app’s Storage::disk('s3'))
     |--------------------------------------------------------------------------
     */
