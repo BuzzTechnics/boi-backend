@@ -34,16 +34,35 @@ final class BoiApiProxyController
         $appH = (string) config('boi_proxy.app_header', 'X-Boi-App');
 
         $user = $request->user();
-        if ($user === null) {
-            abort(401, 'Unauthenticated.');
-        }
 
-        $headers = [
-            'Accept' => 'application/json',
-            'X-Requested-With' => 'XMLHttpRequest',
-            $userH => (string) $user->getAuthIdentifier(),
-            $appH => (string) config('boi_proxy.app', 'app'),
-        ];
+        // Locations are non-sensitive lookup tables; allow unauthenticated requests so public
+        // applications (signed URLs) can still render state/LGA selectors.
+        $isLocationLookup = str_starts_with($path, 'api/states')
+            || str_starts_with($path, 'api/lgas')
+            || str_starts_with($path, 'api/all-lgas')
+            || str_starts_with($path, 'api/cities')
+            || str_starts_with($path, 'api/all-cities')
+            // Banks are also safe lookup tables.
+            || str_starts_with($path, 'api/banks');
+
+        if ($user === null) {
+            if (! $isLocationLookup) {
+                abort(401, 'Unauthenticated.');
+            }
+
+            $headers = [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+                $appH => (string) config('boi_proxy.app', 'app'),
+            ];
+        } else {
+            $headers = [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+                $userH => (string) $user->getAuthIdentifier(),
+                $appH => (string) config('boi_proxy.app', 'app'),
+            ];
+        }
 
         if (count($request->allFiles()) > 0) {
             $pending = Http::timeout($timeout)
