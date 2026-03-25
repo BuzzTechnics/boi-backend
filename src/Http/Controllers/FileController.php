@@ -27,7 +27,7 @@ final class FileController extends Controller
 
         $folder = $request->input('folder', config('boi_files.default_folder', 'documents'));
 
-        $disk = $this->resolveFileDisk();
+        $disk = (string) config('boi_files.disk', 's3');
         $path = FileService::storeFile($request->file('file'), $folder, $disk);
 
         if (! is_string($path) || $path === '') {
@@ -56,7 +56,7 @@ final class FileController extends Controller
             abort(422, 'Path is required');
         }
 
-        $storage = Storage::disk($this->resolveFileDisk());
+        $storage = Storage::disk((string) config('boi_files.disk', 's3'));
         if (! $storage->exists($path)) {
             abort(404, 'File not found');
         }
@@ -66,27 +66,5 @@ final class FileController extends Controller
             : $storage->url($path);
 
         return redirect($url);
-    }
-
-    /**
-     * Disk for package file routes: explicit BOI_FILES_DISK, else S3 when configured,
-     * else S3 outside local (tests use Storage::fake('s3')), else public for local dev without AWS.
-     */
-    private function resolveFileDisk(): string
-    {
-        $explicit = config('boi_files.disk');
-        if (is_string($explicit) && $explicit !== '') {
-            return $explicit;
-        }
-
-        if ((string) config('filesystems.disks.s3.bucket', '') !== '') {
-            return 's3';
-        }
-
-        if (! app()->environment('local')) {
-            return 's3';
-        }
-
-        return 'public';
     }
 }

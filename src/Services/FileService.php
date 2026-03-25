@@ -18,7 +18,7 @@ final class FileService
         $path = $file->storeAs($folder, $filename, $disk);
         if (! is_string($path) || $path === '') {
             throw new \RuntimeException(
-                "Failed to store upload on disk [{$disk}]. Check filesystems.disks.{$disk} (S3 credentials and bucket), or set BOI_FILES_DISK=public for local dev without AWS."
+                "Failed to store upload on disk [{$disk}]. Check filesystems.disks.s3 (AWS credentials, region, and bucket)."
             );
         }
 
