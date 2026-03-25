@@ -7,8 +7,8 @@ use Boi\Backend\Http\Controllers\FileController;
 use Illuminate\Support\Facades\Route;
 
 /**
- * HTTP routes are registered automatically by {@see BoiBackendServiceProvider} unless
- * `config('boi_backend.register_routes')` is false. Use these helpers only for custom wiring.
+ * HTTP routes are registered by {@see BoiBackendServiceProvider}: proxy when
+ * `config('boi_backend.register_routes')`, file routes when `config('boi_backend.register_file_routes')`.
  */
 final class BoiBackend
 {

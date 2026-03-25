@@ -4,15 +4,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Register package HTTP routes
+    | Register boi-api proxy route (`/api/boi-api/{path}`)
     |--------------------------------------------------------------------------
     |
-    | When true, BoiBackendServiceProvider registers the proxy and file routes
-    | with sensible defaults (Sanctum, Jetstream session + verified when present,
-    | TrustedSources on API file routes). Set false only if you register routes manually.
+    | Independent of file routes. Set false on boi-api itself (no self-proxy).
     |
     */
-    'register_routes' => (bool) env('BOI_BACKEND_REGISTER_ROUTES', true),
+    'register_routes' => true,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Register /api/files/upload and /api/files/view
+    |--------------------------------------------------------------------------
+    |
+    | Uses the host app’s S3 disk. Host apps that register their own `/api/files/*`
+    | (e.g. boi-api with auth.proxy) should set this to false in AppServiceProvider.
+    |
+    */
+    'register_file_routes' => true,
 
     /*
     |--------------------------------------------------------------------------

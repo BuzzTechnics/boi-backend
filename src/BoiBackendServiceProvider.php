@@ -17,6 +17,7 @@ class BoiBackendServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/boi_proxy.php', 'boi_proxy');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_api.php', 'boi_api');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_edoc.php', 'boi_edoc');
+        $this->mergeConfigFrom(__DIR__.'/../config/boi_files.php', 'boi_files');
     }
 
     public function boot(): void
@@ -41,6 +42,10 @@ class BoiBackendServiceProvider extends ServiceProvider
             __DIR__.'/../config/boi_edoc.php' => config_path('boi_edoc.php'),
         ], 'boi-backend-edoc');
 
+        $this->publishes([
+            __DIR__.'/../config/boi_files.php' => config_path('boi_files.php'),
+        ], 'boi-backend-files');
+
         $this->mergeConfigFrom(__DIR__.'/../config/banks.php', 'banks');
 
         $this->app->booted(function (): void {
@@ -49,24 +54,25 @@ class BoiBackendServiceProvider extends ServiceProvider
     }
 
     /**
-     * Registers all package HTTP routes unless {@see config('boi_backend.register_routes')} is false.
+     * Registers package routes: boi-api proxy when {@see config('boi_backend.register_routes')},
+     * file upload/view when {@see config('boi_backend.register_file_routes')} (host app S3).
      */
     private function registerPackageRoutes(): void
     {
-        if (! config('boi_backend.register_routes', true)) {
-            return;
+        if (config('boi_backend.register_routes', true)) {
+            Route::middleware($this->proxyMiddleware())
+                ->group(function (): void {
+                    BoiBackend::proxyRoute();
+                });
         }
 
-        Route::middleware($this->proxyMiddleware())
-            ->group(function (): void {
-                BoiBackend::proxyRoute();
-            });
-
-        Route::middleware($this->apiMiddleware())
-            ->prefix('api')
-            ->group(function (): void {
-                BoiBackend::fileRoutes([]);
-            });
+        if (config('boi_backend.register_file_routes', true)) {
+            Route::middleware($this->apiMiddleware())
+                ->prefix('api')
+                ->group(function (): void {
+                    BoiBackend::fileRoutes([]);
+                });
+        }
     }
 
     /**

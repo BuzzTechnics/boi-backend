@@ -2,31 +2,32 @@
 
 namespace Boi\Backend\Http\Controllers;
 
+use Boi\Backend\Services\FileService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * S3 file upload and presigned redirect for viewing.
+ * S3 file upload and presigned redirect — uses the host application’s {@see config('filesystems.disks.s3')}.
  *
- * Routes are registered by {@see BoiBackendServiceProvider} unless disabled in config.
+ * Registered by {@see BoiBackendServiceProvider} unless {@see config('boi_backend.register_file_routes')} is false.
  */
 final class FileController extends Controller
 {
     public function upload(Request $request)
     {
-        $maxSizeKb = $request->input('context') === 'bank_statement' ? 20480 : 10240;
+        $context = $request->input('context');
+        $maxKb = config("boi_files.upload.contexts.{$context}", config('boi_files.upload.max_size_kb', 10240));
 
         $request->validate([
-            'file' => ['required', 'file', "max:{$maxSizeKb}"],
-            'folder' => 'string|nullable',
-            'context' => 'string|nullable',
+            'file' => ['required', 'file', "max:{$maxKb}"],
+            'folder' => 'nullable|string',
+            'context' => 'nullable|string',
         ]);
 
-        $path = $request->file('file')->store(
-            $request->input('folder', 'documents'),
-            's3'
-        );
+        $folder = $request->input('folder', config('boi_files.default_folder', 'documents'));
+
+        $path = FileService::storeFile($request->file('file'), $folder, 's3');
 
         if (! is_string($path) || $path === '') {
             return response()->json(['success' => false, 'message' => 'Upload failed: empty storage path'], 500);
@@ -54,19 +55,15 @@ final class FileController extends Controller
             abort(422, 'Path is required');
         }
 
-        try {
-            $s3 = Storage::disk('s3');
-            if (! $s3->exists($path)) {
-                abort(404, 'File not found');
-            }
-
-            $url = method_exists($s3, 'temporaryUrl')
-                ? $s3->temporaryUrl($path, now()->addMinutes(5))
-                : $s3->url($path);
-
-            return redirect($url);
-        } catch (\Exception $e) {
+        $s3 = Storage::disk('s3');
+        if (! $s3->exists($path)) {
             abort(404, 'File not found');
         }
+
+        $url = method_exists($s3, 'temporaryUrl')
+            ? $s3->temporaryUrl($path, now()->addMinutes(5))
+            : $s3->url($path);
+
+        return redirect($url);
     }
 }
