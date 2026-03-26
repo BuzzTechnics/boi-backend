@@ -91,6 +91,8 @@ class PaystackBanks
             return false;
         }
 
+        self::ensurePostgresSerialNotBehindMaxId($bankModel);
+
         foreach ($json['data'] as $bank) {
             $code = $bank['code'] ?? null;
             $name = $bank['name'] ?? null;
@@ -110,6 +112,42 @@ class PaystackBanks
         }
 
         return true;
+    }
+
+    /**
+     * After restores or manual inserts, PostgreSQL serial sequences can lag behind MAX(id),
+     * causing duplicate primary key errors on the next insert.
+     *
+     * @param  class-string<\Illuminate\Database\Eloquent\Model>  $bankModel
+     */
+    private static function ensurePostgresSerialNotBehindMaxId(string $bankModel): void
+    {
+        /** @var \Illuminate\Database\Eloquent\Model $instance */
+        $instance = new $bankModel;
+        $connection = $instance->getConnection();
+
+        if ($connection->getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        $table = $instance->getTable();
+        $key = $instance->getKeyName();
+
+        $seqRow = $connection->selectOne(
+            'select pg_get_serial_sequence(?, ?) as seq',
+            [$table, $key]
+        );
+
+        if (! $seqRow || empty($seqRow->seq)) {
+            return;
+        }
+
+        $max = $connection->table($table)->max($key);
+        if ($max === null || (int) $max < 1) {
+            return;
+        }
+
+        $connection->statement('select setval(?, ?, true)', [$seqRow->seq, (int) $max]);
     }
 
     private static function generateShortName(string $name): string
