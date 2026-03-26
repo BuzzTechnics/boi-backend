@@ -2,6 +2,7 @@
 
 namespace Boi\Backend;
 
+use Boi\Backend\Console\Commands\FixPostgresSequences;
 use Boi\Backend\Http\Middleware\TrustedSources;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -22,6 +23,12 @@ class BoiBackendServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                FixPostgresSequences::class,
+            ]);
+        }
+
         $this->publishes([
             __DIR__.'/../config/banks.php' => config_path('banks.php'),
         ], 'boi-backend-config');
