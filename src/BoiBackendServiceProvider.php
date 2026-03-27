@@ -19,6 +19,7 @@ class BoiBackendServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/boi_api.php', 'boi_api');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_edoc.php', 'boi_edoc');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_files.php', 'boi_files');
+        $this->mergeConfigFrom(__DIR__.'/../config/boi_integrations.php', 'boi_integrations');
     }
 
     public function boot(): void
@@ -52,6 +53,10 @@ class BoiBackendServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../config/boi_files.php' => config_path('boi_files.php'),
         ], 'boi-backend-files');
+
+        $this->publishes([
+            __DIR__.'/../config/boi_integrations.php' => config_path('boi_integrations.php'),
+        ], 'boi-backend-integrations');
 
         $this->mergeConfigFrom(__DIR__.'/../config/banks.php', 'banks');
 
