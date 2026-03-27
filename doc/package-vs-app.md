@@ -13,6 +13,7 @@
 | **Seeders** | `BankSeeder`, `BankStatementSeeder`, `BanksSeeder` (optional; call from app `DatabaseSeeder`). |
 | **Contracts** | e.g. statement provider/updater interfaces for boi-api alignment. |
 | **Support** | `PaystackBanks`, etc. |
+| **Global helpers** | `src/helpers.php` (Composer `files`): `boi_files_api_view_url`, `clean_request_arrays`, `is_json`, `split_name`, `asString`, `array_flatten_with_keys` — autoloaded with the package. |
 | **Reference policies** | `Boi\Backend\Policies\*` exist as **optional copies** — the package **does not** register them with `Gate` (see [Nova & authorization](nova-and-authorization.md)). |
 
 ## In each consuming application

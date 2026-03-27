@@ -1,7 +1,7 @@
 {
     "name": "buzztech/boi-backend",
     "description": "BOI Laravel backend package",
-    "version": "0.3.4",
+    "version": "0.3.5",
     "type": "library",
     "license": "MIT",
     "keywords": [
@@ -39,7 +39,10 @@
     "autoload": {
         "psr-4": {
             "Boi\\Backend\\": "src/"
-        }
+        },
+        "files": [
+            "src/helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {
