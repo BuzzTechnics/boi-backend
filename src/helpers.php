@@ -226,7 +226,7 @@ if (! function_exists('boi_inertia_shared_props')) {
     /**
      * Props for Inertia apps using boi-api proxy (merge into {@see Middleware\HandleInertiaRequests::share}).
      *
-     * @return array{boiApiUrl: string, boiProxy: string}
+     * @return array{boiProxy: string}
      */
     function boi_inertia_shared_props(): array
     {
@@ -235,7 +235,6 @@ if (! function_exists('boi_inertia_shared_props')) {
         $proxy = ($boiUrl !== '' && $boiKey !== '') ? rtrim(URL::to('/api/boi-api'), '/') : '';
 
         return [
-            'boiApiUrl' => $boiUrl,
             'boiProxy' => $proxy,
         ];
     }

@@ -22,6 +22,14 @@ final class BoiApiProxyController
             abort(404);
         }
 
+        if (str_starts_with($path, 'api/banks/validate')) {
+            abort(404, 'Use the host application validate endpoint (e.g. POST /api/validate).');
+        }
+
+        if (str_starts_with($path, 'api/integrations/')) {
+            abort(404, 'Integration endpoints are server-to-server only.');
+        }
+
         $this->assertUserOwnsLoanApplicationInPath($request, $path);
 
         $url = $base.'/'.$path;
@@ -42,8 +50,8 @@ final class BoiApiProxyController
             || str_starts_with($path, 'api/all-lgas')
             || str_starts_with($path, 'api/cities')
             || str_starts_with($path, 'api/all-cities')
-            // Banks are also safe lookup tables.
-            || str_starts_with($path, 'api/banks');
+            // Banks list only (not POST /api/banks/validate — blocked above).
+            || rtrim($path, '/') === 'api/banks';
 
         if ($user === null) {
             if (! $isLocationLookup) {
