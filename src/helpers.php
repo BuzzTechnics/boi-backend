@@ -1,6 +1,10 @@
 <?php
 
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 
 if (! function_exists('array_flatten_with_keys')) {
     function array_flatten_with_keys($array, string $prefix = '', string $separator = '.'): array
@@ -97,6 +101,142 @@ if (! function_exists('split_name')) {
             'first_name' => $parts[0],
             'middle_name' => $parts[1],
             'last_name' => implode(' ', array_slice($parts, 2)),
+        ];
+    }
+}
+
+if (! function_exists('rounded_currency')) {
+    function rounded_currency($value): ?string
+    {
+        return $value !== null
+            ? '₦'.number_format(BigDecimal::of($value)->toScale(2, RoundingMode::DOWN)->toFloat(), 2)
+            : null;
+    }
+}
+
+if (! function_exists('apply_search_filter')) {
+    /**
+     * Postgres-oriented flexible search (ILIKE + normalized match). Column names must be trusted (not user input).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $query
+     */
+    function apply_search_filter($query, ?string $search, array $searchableColumns)
+    {
+        return $query->when($search, function ($query) use ($search, $searchableColumns) {
+            $trimmedSearch = trim($search);
+            if ($trimmedSearch !== '') {
+                $query->where(function ($q) use ($searchableColumns, $trimmedSearch) {
+                    foreach ($searchableColumns as $column) {
+                        if (strpos($column, '.') !== false) {
+                            [$relation, $relatedColumn] = explode('.', $column);
+
+                            $q->orWhereHas($relation, function ($subQuery) use ($relatedColumn, $trimmedSearch) {
+                                $subQuery->whereRaw("CAST({$relatedColumn} AS TEXT) ILIKE ?", ['%'.$trimmedSearch.'%'])
+                                    ->orWhereRaw("REGEXP_REPLACE(CAST({$relatedColumn} AS TEXT), '[^a-zA-Z0-9]', '', 'g') ILIKE ?",
+                                        ['%'.preg_replace('/[^a-zA-Z0-9]/', '', $trimmedSearch).'%']);
+                            });
+                        } else {
+                            $q->orWhereRaw("CAST({$column} AS TEXT) ILIKE ?", ['%'.$trimmedSearch.'%'])
+                                ->orWhereRaw("REGEXP_REPLACE(CAST({$column} AS TEXT), '[^a-zA-Z0-9]', '', 'g') ILIKE ?",
+                                    ['%'.preg_replace('/[^a-zA-Z0-9]/', '', $trimmedSearch).'%']);
+                        }
+                    }
+                });
+            }
+        });
+    }
+}
+
+if (! function_exists('get_lga_ids_by_internal_region')) {
+    /** @return list<int|string> */
+    function get_lga_ids_by_internal_region(int|string $internal_region_id): array
+    {
+        return \Boi\Backend\Models\Lga::idsForInternalRegion($internal_region_id);
+    }
+}
+
+if (! function_exists('sharepoint_bool')) {
+    function sharepoint_bool($value): string
+    {
+        return (bool) $value ? 'Yes' : 'No';
+    }
+}
+
+if (! function_exists('sharepoint_format_document')) {
+    /**
+     * SharePoint-style document payload. Uses {@see config('boi_files.disk')} (default s3).
+     *
+     * @return array{ContentBytes: string, ContentType: string, FileName: string}
+     */
+    function sharepoint_format_document(?string $path): array
+    {
+        if (! $path) {
+            return ['ContentBytes' => '', 'ContentType' => 'application/pdf', 'FileName' => ''];
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $contentType = match ($extension) {
+            'pdf' => 'application/pdf',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            default => 'application/octet-stream',
+        };
+
+        $disk = (string) config('boi_files.disk', 's3');
+
+        try {
+            $fileUrl = Storage::disk($disk)->url($path) ?: '';
+        } catch (\Throwable) {
+            $fileUrl = '';
+        }
+
+        return [
+            'ContentBytes' => $fileUrl,
+            'ContentType' => $contentType,
+            'FileName' => basename($path) ?: '',
+        ];
+    }
+}
+
+if (! function_exists('sharepoint_shorten_directorate')) {
+    function sharepoint_shorten_directorate(?string $directorate): string
+    {
+        if (! $directorate) {
+            return '';
+        }
+
+        $directorate = trim($directorate);
+
+        if ($directorate === 'PSIP' || $directorate === 'Public_Sector_and_Intervention_Programs_Directorate') {
+            return 'PS/IP';
+        }
+
+        return match ($directorate) {
+            'Large_Enterprises_Directorate' => 'LE',
+            'MSME_Directorate' => 'MSME',
+            'Treasury_and_Financial_Institutions' => 'TFI',
+            default => $directorate,
+        };
+    }
+}
+
+if (! function_exists('boi_inertia_shared_props')) {
+    /**
+     * Props for Inertia apps using boi-api proxy (merge into {@see Middleware\HandleInertiaRequests::share}).
+     *
+     * @return array{boiApiUrl: string, boiProxy: string}
+     */
+    function boi_inertia_shared_props(): array
+    {
+        $boiUrl = rtrim((string) config('boi_proxy.url', ''), '/');
+        $boiKey = (string) config('boi_proxy.key', '');
+        $proxy = ($boiUrl !== '' && $boiKey !== '') ? rtrim(URL::to('/api/boi-api'), '/') : '';
+
+        return [
+            'boiApiUrl' => $boiUrl,
+            'boiProxy' => $proxy,
         ];
     }
 }

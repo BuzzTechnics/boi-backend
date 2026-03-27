@@ -13,7 +13,8 @@
 | **Seeders** | `BankSeeder`, `BankStatementSeeder`, `BanksSeeder` (optional; call from app `DatabaseSeeder`). |
 | **Contracts** | e.g. statement provider/updater interfaces for boi-api alignment. |
 | **Support** | `PaystackBanks`, etc. |
-| **Global helpers** | `src/helpers.php` (Composer `files`): `boi_files_api_view_url`, `clean_request_arrays`, `is_json`, `split_name`, `asString`, `array_flatten_with_keys` — autoloaded with the package. |
+| **Global helpers** | `src/helpers.php`: files/JSON/string utils, `rounded_currency` (Brick), Postgres `apply_search_filter`, `get_lga_ids_by_internal_region` (→ `Lga::idsForInternalRegion`), SharePoint payload helpers, `boi_inertia_shared_props`. |
+| **`Lga`** | `idsForInternalRegion()` for internal-region scoping. |
 | **Reference policies** | `Boi\Backend\Policies\*` exist as **optional copies** — the package **does not** register them with `Gate` (see [Nova & authorization](nova-and-authorization.md)). |
 
 ## In each consuming application

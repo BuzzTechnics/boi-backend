@@ -25,5 +25,17 @@ class Lga extends Model
     {
         return $this->belongsTo(InternalRegion::class, 'internal_region_id_2');
     }
+
+    /**
+     * @return list<int|string>
+     */
+    public static function idsForInternalRegion(int|string $internalRegionId): array
+    {
+        return static::query()
+            ->where('internal_region_id', $internalRegionId)
+            ->orWhere('internal_region_id_2', $internalRegionId)
+            ->pluck('id')
+            ->toArray();
+    }
 }
 
