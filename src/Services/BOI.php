@@ -6,9 +6,9 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Third-party API on BOI enterprise hosts: authentication, BVN/NIN checks, CAC verification.
+ * BOI enterprise third-party API: authentication, BVN/NIN checks, CAC verification.
  */
-class BoiThirdPartyClient
+class BOI
 {
     private const CACHE_KEY = 'boi_backend:boi_thirdparty_api_token';
 

@@ -5,8 +5,8 @@
  *
  * Credentials use the same env vars as typical Glow `config/services.php` entries.
  *
- * @see \Boi\Backend\Services\BoiThirdPartyClient
- * @see \Boi\Backend\Services\RubikonClient
+ * @see \Boi\Backend\Services\BOI
+ * @see \Boi\Backend\Services\Rubikon
  */
 return [
 

@@ -14,7 +14,7 @@
 | **Contracts** | e.g. statement provider/updater interfaces for boi-api alignment. |
 | **Support** | `PaystackBanks`, etc. |
 | **Global helpers** | `src/helpers.php`: files/JSON/string utils, `rounded_currency` (Brick), Postgres `apply_search_filter`, `get_lga_ids_by_internal_region` (→ `Lga::idsForInternalRegion`), SharePoint payload helpers, `boi_inertia_shared_props`. |
-| **Enterprise integrations** | `BoiThirdPartyClient` (BVN/NIN/CAC + auth token cache), `RubikonClient` (customer / registration lookup). Config: merged `boi_integrations` (`BOI_THIRDPARTY_API_BASE`, `BOI_CAC_VERIFY_BASE`, `RUBIKON_API_BASE`, credentials). Publish: `php artisan vendor:publish --tag=boi-backend-integrations`. |
+| **Enterprise integrations** | `BOI` (BVN/NIN/CAC + auth token cache), `Rubikon` (customer / registration lookup). Config: merged `boi_integrations` (`BOI_THIRDPARTY_API_BASE`, `BOI_CAC_VERIFY_BASE`, `RUBIKON_API_BASE`, credentials). Publish: `php artisan vendor:publish --tag=boi-backend-integrations`. |
 | **`Lga`** | `idsForInternalRegion()` for internal-region scoping. |
 | **Reference policies** | `Boi\Backend\Policies\*` exist as **optional copies** — the package **does not** register them with `Gate` (see [Nova & authorization](nova-and-authorization.md)). |
 

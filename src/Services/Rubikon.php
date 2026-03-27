@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Http;
 /**
  * Rubikon customer API (registration / customer number lookup).
  */
-class RubikonClient
+class Rubikon
 {
     private const CACHE_KEY = 'boi_backend:rubikon_api_token';
 
