@@ -31,14 +31,4 @@ return [
         'http_timeout' => (int) env('RUBIKON_HTTP_TIMEOUT', 120),
     ],
 
-    /*
-    | Outbound SharePoint submit from apps via {@see \Boi\Backend\Support\SharePointGateway}.
-    | When BOI_API_URL is set, the gateway POSTs to boi-api; otherwise uses services.sharepoint.* on the host app.
-    */
-    'sharepoint' => [
-        'timeout' => (int) env('SHAREPOINT_GATEWAY_TIMEOUT', 300),
-        'retry_times' => (int) env('SHAREPOINT_GATEWAY_RETRY_TIMES', 2),
-        'retry_delay_ms' => (int) env('SHAREPOINT_GATEWAY_RETRY_DELAY_MS', 1000),
-    ],
-
 ];
