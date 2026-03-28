@@ -22,7 +22,8 @@ final class BoiApiProxyController
             abort(404);
         }
 
-        if (str_starts_with($path, 'api/banks/validate')) {
+        if (str_starts_with($path, 'api/identity/validate')
+            || str_starts_with($path, 'api/banks/validate')) {
             abort(404, 'Use the host application validate endpoint (e.g. POST /api/validate).');
         }
 
@@ -50,7 +51,7 @@ final class BoiApiProxyController
             || str_starts_with($path, 'api/all-lgas')
             || str_starts_with($path, 'api/cities')
             || str_starts_with($path, 'api/all-cities')
-            // Banks list only (not POST /api/banks/validate — blocked above).
+            // Banks list only (not POST identity/banks validate — blocked above).
             || rtrim($path, '/') === 'api/banks';
 
         if ($user === null) {
