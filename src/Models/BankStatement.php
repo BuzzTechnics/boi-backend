@@ -4,7 +4,6 @@ namespace Boi\Backend\Models;
 
 use Boi\Backend\Database\Factories\BankStatementFactory;
 use Boi\Backend\Models\Concerns\UsesBoiApiDatabase;
-use Boi\Backend\Support\DynamicS3Filesystem;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
@@ -39,7 +38,6 @@ class BankStatement extends Model
         'bvn',
         'email',
         'bank_statement',
-        'files_bucket',
         'csv_url',
         'consent_id',
         'edoc_status',
@@ -77,7 +75,7 @@ class BankStatement extends Model
             return $val;
         }
 
-        return self::resolveStorageViewUrl($val, self::filesBucketFromAttributes($this->attributes));
+        return self::resolveStorageViewUrl($val);
     }
 
     /**
@@ -96,30 +94,16 @@ class BankStatement extends Model
             return $val;
         }
 
-        return self::resolveStorageViewUrl($val, self::filesBucketFromAttributes($this->attributes));
+        return self::resolveStorageViewUrl($val);
     }
 
     /**
-     * @param  array<string, mixed>  $attributes
+     * Presigned (5 min) or public URL for an object key on the app `s3` disk (boi-api default bucket).
      */
-    protected static function filesBucketFromAttributes(array $attributes): ?string
-    {
-        $b = $attributes['files_bucket'] ?? null;
-
-        return is_string($b) && trim($b) !== '' ? trim($b) : null;
-    }
-
-    /**
-     * Presigned (5 min) or public URL for an object key on S3 (uses `files_bucket` when set and allow-listed).
-     */
-    protected static function resolveStorageViewUrl(string $path, ?string $filesBucket = null): ?string
+    protected static function resolveStorageViewUrl(string $path): ?string
     {
         try {
-            if (config('boi_files.accept_target_bucket')) {
-                $s3 = DynamicS3Filesystem::diskForBucket($filesBucket);
-            } else {
-                $s3 = Storage::disk('s3');
-            }
+            $s3 = Storage::disk('s3');
 
             return method_exists($s3, 'temporaryUrl')
                 ? $s3->temporaryUrl($path, now()->addMinutes(5))
