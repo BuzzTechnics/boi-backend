@@ -5,6 +5,7 @@ namespace Boi\Backend\Http\Controllers;
 use Boi\Backend\Services\BoiFileApiDelegator;
 use Boi\Backend\Services\FileService;
 use Boi\Backend\Support\BoiFileHeaders;
+use Boi\Backend\Support\BoiFilesTrace;
 use Boi\Backend\Support\DynamicS3Filesystem;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -35,10 +36,20 @@ final class FileController extends Controller
         $folder = $request->input('folder', config('boi_files.default_folder', 'documents'));
         $file = $request->file('file');
 
+        BoiFilesTrace::log('upload.enter', [
+            'folder' => $folder,
+            'context' => $context,
+            'user_id' => $request->user()?->getAuthIdentifier(),
+            'will_try_delegate' => BoiFileApiDelegator::shouldDelegate(),
+            'accept_target_bucket' => (bool) config('boi_files.accept_target_bucket'),
+        ]);
+
         $delegated = BoiFileApiDelegator::forwardUpload($request, $file, $folder, $context);
         if ($delegated !== null) {
             return $delegated;
         }
+
+        BoiFilesTrace::log('upload.local_store', ['folder' => $folder]);
 
         $storage = $this->resolveFilesystem($request);
         $path = FileService::storeToFilesystem($file, $folder, $storage);
@@ -52,7 +63,27 @@ final class FileController extends Controller
             'success' => true,
             'path' => $path,
             'url' => $this->resolveFileUrl($storage, $path),
+            'bucket' => $this->bucketNameFromFilesystem($storage),
         ]);
+    }
+
+    private function bucketNameFromFilesystem(FilesystemAdapter $storage): ?string
+    {
+        try {
+            $config = $storage->getConfig();
+            if (is_array($config)) {
+                $bucket = $config['bucket'] ?? null;
+                if (is_string($bucket) && $bucket !== '') {
+                    return $bucket;
+                }
+            }
+        } catch (\Throwable) {
+        }
+
+        $diskName = (string) config('boi_files.disk', 's3');
+        $fallback = config("filesystems.disks.{$diskName}.bucket");
+
+        return is_string($fallback) && $fallback !== '' ? $fallback : null;
     }
 
     public function view(Request $request)
@@ -65,6 +96,11 @@ final class FileController extends Controller
             abort(422, 'Path is required');
         }
 
+        BoiFilesTrace::log('view.enter', [
+            'path_prefix' => strlen($path) > 80 ? substr($path, 0, 80).'…' : $path,
+            'will_try_delegate' => BoiFileApiDelegator::shouldDelegate(),
+        ]);
+
         $delegated = BoiFileApiDelegator::forwardView($request, $path);
         if ($delegated !== null) {
             return $delegated;
@@ -72,11 +108,23 @@ final class FileController extends Controller
 
         $storage = $this->resolveFilesystem($request);
         /** @var FilesystemAdapter $storage */
-        if (! $storage->exists($path)) {
+        $exists = $storage->exists($path);
+        BoiFilesTrace::log('view.local', [
+            'path_prefix' => strlen($path) > 80 ? substr($path, 0, 80).'…' : $path,
+            'exists' => $exists,
+        ]);
+
+        if (! $exists) {
             abort(404, 'File not found');
         }
 
-        return redirect($this->resolveFileUrl($storage, $path));
+        $url = $this->resolveFileUrl($storage, $path);
+        $locationHost = parse_url($url, PHP_URL_HOST);
+        BoiFilesTrace::log('view.redirect', [
+            'location_host' => is_string($locationHost) && $locationHost !== '' ? $locationHost : 'unknown',
+        ]);
+
+        return redirect($url);
     }
 
     private function resolveFilesystem(Request $request): Filesystem
@@ -84,6 +132,13 @@ final class FileController extends Controller
         if (config('boi_files.accept_target_bucket')) {
             $bucket = $request->header(BoiFileHeaders::TARGET_BUCKET) ?: $request->query('bucket');
             $bucket = is_string($bucket) ? trim($bucket) : '';
+
+            BoiFilesTrace::log('resolve_filesystem', [
+                'header_bucket' => $request->header(BoiFileHeaders::TARGET_BUCKET),
+                'query_bucket' => $request->query('bucket'),
+                'resolved_input' => $bucket !== '' ? $bucket : null,
+                'boi_files_disk' => config('boi_files.disk'),
+            ]);
 
             return DynamicS3Filesystem::diskForBucket($bucket !== '' ? $bucket : null);
         }

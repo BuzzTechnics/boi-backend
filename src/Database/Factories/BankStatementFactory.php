@@ -24,6 +24,7 @@ class BankStatementFactory extends Factory
             'bvn' => $this->faker->optional()->numerify('###########'),
             'email' => $this->faker->optional()->safeEmail(),
             'bank_statement' => null,
+            'files_bucket' => null,
             'csv_url' => null,
             'consent_id' => null,
             'edoc_status' => 'pending',

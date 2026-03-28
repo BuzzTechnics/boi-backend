@@ -6,8 +6,8 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Builds and caches S3 disks that share credentials with {@see config('filesystems.disks.s3')}
- * but use a different bucket, when that bucket is allow-listed.
+ * Builds and caches S3 disks that share credentials with the app’s configured upload disk
+ * ({@see config('boi_files.disk')}) but use a different bucket, when that bucket is allow-listed.
  */
 final class DynamicS3Filesystem
 {
@@ -20,26 +20,90 @@ final class DynamicS3Filesystem
     }
 
     /**
-     * @param  string|null  $bucket  null or empty → default {@see config('boi_files.disk')} (usual single-bucket disk).
+     * Disk used for file routes ({@see config('boi_files.disk')}, usually `s3`).
+     */
+    private static function uploadDiskName(): string
+    {
+        return (string) config('boi_files.disk', 's3');
+    }
+
+    /**
+     * Normalized bucket name for the upload disk (canonical “default” for allow-list checks).
+     */
+    private static function defaultBucket(): string
+    {
+        $name = self::uploadDiskName();
+
+        return self::normalizeBucketName((string) config("filesystems.disks.{$name}.bucket", ''));
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function uploadS3DiskConfig(): ?array
+    {
+        $cfg = config('filesystems.disks.'.self::uploadDiskName());
+        if (! is_array($cfg) || ($cfg['driver'] ?? '') !== 's3') {
+            return null;
+        }
+
+        return $cfg;
+    }
+
+    /**
+     * @param  string|null  $bucket  null or empty → default {@see config('boi_files.disk')}.
      */
     public static function diskForBucket(?string $bucket): Filesystem
     {
-        $defaultBucket = (string) config('filesystems.disks.s3.bucket', '');
-        $bucket = $bucket !== null ? trim($bucket) : '';
+        $defaultBucket = self::defaultBucket();
+        $bucket = $bucket !== null ? self::normalizeBucketName($bucket) : '';
 
-        if ($bucket === '' || ($defaultBucket !== '' && $bucket === $defaultBucket)) {
-            return Storage::disk((string) config('boi_files.disk', 's3'));
+        /*
+         * No bucket name in config (e.g. AWS_BUCKET unset): we cannot tell whether a header matches
+         * “the default”, so ignore X-Boi-Files-Bucket / ?bucket= and use the configured disk.
+         */
+        if ($defaultBucket === '') {
+            BoiFilesTrace::log('dynamic_s3.branch', [
+                'branch' => 'default_bucket_empty_use_disk',
+                'upload_disk' => self::uploadDiskName(),
+                'requested_bucket_raw' => $bucket,
+            ]);
+
+            return Storage::disk(self::uploadDiskName());
+        }
+
+        if ($bucket === '' || $bucket === $defaultBucket) {
+            BoiFilesTrace::log('dynamic_s3.branch', [
+                'branch' => 'use_default_disk',
+                'upload_disk' => self::uploadDiskName(),
+                'default_bucket' => $defaultBucket,
+                'requested_normalized' => $bucket !== '' ? $bucket : '(empty)',
+            ]);
+
+            return Storage::disk(self::uploadDiskName());
         }
 
         if (! self::bucketIsAllowed($bucket)) {
+            BoiFilesTrace::log('dynamic_s3.branch', [
+                'branch' => 'reject_not_allowed',
+                'requested' => $bucket,
+                'default_bucket' => $defaultBucket,
+                'allowed_extras' => config('boi_files.allowed_target_buckets', []),
+            ]);
+
             abort(422, 'The requested storage bucket is not allowed.');
         }
 
         if (! isset(self::$cache[$bucket])) {
-            $base = config('filesystems.disks.s3');
-            if (! is_array($base) || ($base['driver'] ?? '') !== 's3') {
+            $base = self::uploadS3DiskConfig();
+            if ($base === null) {
                 abort(500, 'S3 is not configured.');
             }
+
+            BoiFilesTrace::log('dynamic_s3.branch', [
+                'branch' => 'build_alternate_disk',
+                'bucket' => $bucket,
+            ]);
 
             self::$cache[$bucket] = Storage::build([
                 'driver' => 's3',
@@ -59,6 +123,7 @@ final class DynamicS3Filesystem
 
     public static function bucketIsAllowed(string $bucket): bool
     {
+        $bucket = self::normalizeBucketName($bucket);
         if ($bucket === '') {
             return false;
         }
@@ -68,9 +133,15 @@ final class DynamicS3Filesystem
             $extra = [];
         }
 
-        $default = (string) config('filesystems.disks.s3.bucket', '');
-        $all = array_values(array_unique(array_filter([$default, ...$extra])));
+        $default = self::defaultBucket();
+        $normalizedExtras = array_map(self::normalizeBucketName(...), $extra);
+        $all = array_values(array_unique(array_filter([$default, ...$normalizedExtras])));
 
         return in_array($bucket, $all, true);
+    }
+
+    private static function normalizeBucketName(string|int|float $bucket): string
+    {
+        return strtolower(trim((string) $bucket));
     }
 }

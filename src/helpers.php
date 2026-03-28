@@ -32,11 +32,36 @@ if (! function_exists('asString')) {
     }
 }
 
+if (! function_exists('boi_files_browser_api_base')) {
+    /**
+     * Base URL for browser file upload/view (must match {@see boi_files_api_view_url}).
+     * Empty string → host app `/api/files/*` (not proxied to boi-api).
+     */
+    function boi_files_browser_api_base(): string
+    {
+        $configured = rtrim((string) config('boi_files.api_base', ''), '/');
+        if ($configured !== '') {
+            if (str_starts_with($configured, 'http://') || str_starts_with($configured, 'https://')) {
+                return $configured;
+            }
+
+            return rtrim(URL::to($configured), '/');
+        }
+        if (rtrim((string) config('boi_proxy.url', ''), '/') !== '' && config('boi_proxy.key')) {
+            return rtrim(URL::to('/api/boi-api'), '/');
+        }
+
+        return '';
+    }
+}
+
 if (! function_exists('boi_files_api_view_url')) {
     /**
      * View URL for a stored file path (boi-ui {@see filesApi.view} / Inertia `boiProxy`).
+     *
+     * @param  string|null  $targetBucket  When set, appended as `bucket` query for boi-api dynamic S3 disks.
      */
-    function boi_files_api_view_url(?string $stored): ?string
+    function boi_files_api_view_url(?string $stored, ?string $targetBucket = null): ?string
     {
         if ($stored === null || trim((string) $stored) === '') {
             return null;
@@ -46,13 +71,18 @@ if (! function_exists('boi_files_api_view_url')) {
             return $stored;
         }
 
-        $base = rtrim((string) config('boi_files.api_base', ''), '/');
-        if ($base === '' && rtrim((string) config('boi_proxy.url', ''), '/') !== '' && config('boi_proxy.key')) {
-            $base = '/api/boi-api';
+        $bucket = $targetBucket !== null && trim((string) $targetBucket) !== '' ? trim((string) $targetBucket) : null;
+        $suffix = '/api/files/view?path='.rawurlencode($stored);
+        if ($bucket !== null) {
+            $suffix .= '&bucket='.rawurlencode($bucket);
         }
-        $path = $base.'/api/files/view?path='.rawurlencode($stored);
 
-        return str_starts_with($path, 'http://') || str_starts_with($path, 'https://') ? $path : url($path);
+        $base = boi_files_browser_api_base();
+        if ($base === '') {
+            return url($suffix);
+        }
+
+        return $base.$suffix;
     }
 }
 
@@ -236,6 +266,7 @@ if (! function_exists('boi_inertia_shared_props')) {
 
         return [
             'boiProxy' => $proxy,
+            'boiFilesApiBase' => boi_files_browser_api_base(),
         ];
     }
 }
