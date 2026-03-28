@@ -31,4 +31,27 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Delegate uploads/views to boi-api (server-to-server)
+    |--------------------------------------------------------------------------
+    |
+    | When boi_proxy.url + boi_proxy.key are set: null = delegate; false = never; true = delegate.
+    |
+    */
+    'delegate_to_boi_api' => ($v = env('BOI_FILES_DELEGATE_TO_API')) === null ? null : filter_var($v, FILTER_VALIDATE_BOOLEAN),
+
+    'target_bucket' => env('BOI_FILES_TARGET_BUCKET', ''),
+
+    'delegate_timeout' => (int) env('BOI_FILES_DELEGATE_TIMEOUT', 300),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Trusted alternate bucket (boi-api only; never enable on browser-facing apps)
+    |--------------------------------------------------------------------------
+    */
+    'accept_target_bucket' => filter_var(env('BOI_FILES_ACCEPT_TARGET_BUCKET', false), FILTER_VALIDATE_BOOLEAN),
+
+    'allowed_target_buckets' => array_values(array_filter(array_map('trim', explode(',', (string) env('BOI_FILES_ALLOWED_BUCKETS', ''))))),
+
 ];

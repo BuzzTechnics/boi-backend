@@ -2,6 +2,7 @@
 
 namespace Boi\Backend\Services;
 
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 
@@ -23,6 +24,26 @@ final class FileService
         }
 
         return $path;
+    }
+
+    public static function storeToFilesystem(UploadedFile $file, string $folder, Filesystem $disk): string
+    {
+        $ext = $file->getClientOriginalExtension()
+            ?: self::extensionFromMime($file->getMimeType());
+        $filename = Str::random(10).'.'.$ext;
+        $folder = trim(str_replace('\\', '/', $folder), '/');
+        $relativePath = $folder !== '' ? $folder.'/'.$filename : $filename;
+
+        $binary = file_get_contents($file->getRealPath() ?: '');
+        if ($binary === false) {
+            throw new \RuntimeException('Could not read uploaded file.');
+        }
+
+        if (! $disk->put($relativePath, $binary)) {
+            throw new \RuntimeException('Failed to store upload on filesystem.');
+        }
+
+        return $relativePath;
     }
 
     protected static function extensionFromMime(?string $mime): string
