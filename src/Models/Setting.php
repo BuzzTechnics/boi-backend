@@ -20,19 +20,36 @@ class Setting extends Model
     ];
 
     /**
+     * Cache key prefix. Bumped when stored payload shape changes (avoid unserializing Eloquent models).
+     */
+    protected static function cacheKey(string $key): string
+    {
+        return "setting_v2_{$key}";
+    }
+
+    /**
      * Get a setting value by key.
      */
     public static function get(string $key, $default = null)
     {
-        $setting = Cache::remember("setting_{$key}", 3600, function () use ($key) {
-            return static::where('key', $key)->first();
+        $payload = Cache::remember(static::cacheKey($key), 3600, function () use ($key) {
+            $row = static::query()->where('key', $key)->first(['value', 'type']);
+
+            if ($row === null) {
+                return null;
+            }
+
+            return [
+                'value' => $row->value,
+                'type' => $row->type,
+            ];
         });
 
-        if (! $setting) {
+        if ($payload === null) {
             return $default;
         }
 
-        return static::castValue($setting->value, $setting->type);
+        return static::castValue($payload['value'], $payload['type']);
     }
 
     /**
@@ -51,7 +68,7 @@ class Setting extends Model
             ]
         );
 
-        Cache::forget("setting_{$key}");
+        Cache::forget(static::cacheKey($key));
     }
 
     /**
@@ -111,11 +128,11 @@ class Setting extends Model
         parent::boot();
 
         static::saved(function ($model) {
-            Cache::forget("setting_{$model->key}");
+            Cache::forget(static::cacheKey($model->key));
         });
 
         static::deleted(function ($model) {
-            Cache::forget("setting_{$model->key}");
+            Cache::forget(static::cacheKey($model->key));
         });
     }
 }
