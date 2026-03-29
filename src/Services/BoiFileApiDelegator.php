@@ -34,7 +34,7 @@ final class BoiFileApiDelegator
     }
 
     /**
-     * Optional bucket forwarded to boi-api (must be allow-listed there).
+     * Optional bucket forwarded to boi-api (DNS-compliant name; IAM must allow access).
      * Only {@see config('boi_files.target_bucket')} — not the app’s local {@see config('filesystems.disks.s3.bucket')},
      * so delegated uploads default to boi-api’s own bucket unless you explicitly target another.
      */

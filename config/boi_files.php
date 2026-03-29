@@ -42,7 +42,7 @@ return [
     'delegate_to_boi_api' => ($v = env('BOI_FILES_DELEGATE_TO_API')) === null ? null : filter_var($v, FILTER_VALIDATE_BOOLEAN),
 
     /*
-    | Optional S3 bucket name sent to boi-api as X-Boi-Files-Bucket (allow-listed there via BOI_FILES_ALLOWED_BUCKETS).
+    | Optional S3 bucket name sent to boi-api as X-Boi-Files-Bucket.
     | Leave empty so delegated uploads use boi-api’s default bucket even when this app’s AWS_BUCKET differs.
     */
     'target_bucket' => env('BOI_FILES_TARGET_BUCKET', ''),
@@ -62,14 +62,6 @@ return [
     |--------------------------------------------------------------------------
     */
     'accept_target_bucket' => filter_var(env('BOI_FILES_ACCEPT_TARGET_BUCKET', false), FILTER_VALIDATE_BOOLEAN),
-
-    /*
-    | When true, any DNS-compliant S3 bucket name is accepted (IAM still limits what works).
-    | When false, only the default bucket plus BOI_FILES_ALLOWED_BUCKETS may be used.
-    */
-    'allow_any_target_bucket' => filter_var(env('BOI_FILES_ALLOW_ANY_TARGET_BUCKET', false), FILTER_VALIDATE_BOOLEAN),
-
-    'allowed_target_buckets' => array_values(array_filter(array_map('trim', explode(',', (string) env('BOI_FILES_ALLOWED_BUCKETS', ''))))),
 
     /*
     |--------------------------------------------------------------------------

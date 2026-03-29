@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * File upload and presigned redirect: optionally delegates to boi-api when {@see BoiFileApiDelegator::shouldDelegate()},
- * otherwise stores on the host disk. On boi-api, set {@see config('boi_files.accept_target_bucket')} and allow-listed buckets
+ * otherwise stores on the host disk. On boi-api, set {@see config('boi_files.accept_target_bucket')} for X-Boi-Files-Bucket / ?bucket=.
  * to target alternate S3 buckets via trusted header/query.
  *
  * Registered by {@see BoiBackendServiceProvider} unless {@see config('boi_backend.register_file_routes')} is false.

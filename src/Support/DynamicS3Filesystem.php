@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Builds and caches S3 disks that share credentials with the app’s configured upload disk
- * ({@see config('boi_files.disk')}) but use a different bucket, when that bucket is allow-listed
- * or {@see config('boi_files.allow_any_target_bucket')} is enabled (boi-api).
+ * ({@see config('boi_files.disk')}) but use a different bucket when {@see config('boi_files.accept_target_bucket')}
+ * is true. Alternate bucket names must be DNS-compliant S3 names; IAM still limits access.
  */
 final class DynamicS3Filesystem
 {
@@ -29,7 +29,7 @@ final class DynamicS3Filesystem
     }
 
     /**
-     * Normalized bucket name for the upload disk (canonical “default” for allow-list checks).
+     * Normalized bucket name for the upload disk (canonical default for comparison).
      */
     private static function defaultBucket(): string
     {
@@ -86,14 +86,12 @@ final class DynamicS3Filesystem
 
         if (! self::bucketIsAllowed($bucket)) {
             BoiFilesTrace::log('dynamic_s3.branch', [
-                'branch' => 'reject_not_allowed',
+                'branch' => 'reject_invalid_bucket_name',
                 'requested' => $bucket,
                 'default_bucket' => $defaultBucket,
-                'allowed_extras' => config('boi_files.allowed_target_buckets', []),
-                'allow_any' => (bool) config('boi_files.allow_any_target_bucket', false),
             ]);
 
-            abort(422, 'The requested storage bucket is not allowed.');
+            abort(422, 'Invalid storage bucket name.');
         }
 
         if (! isset(self::$cache[$bucket])) {
@@ -130,20 +128,7 @@ final class DynamicS3Filesystem
             return false;
         }
 
-        if (filter_var(config('boi_files.allow_any_target_bucket', false), FILTER_VALIDATE_BOOLEAN)) {
-            return self::isDnsCompliantS3BucketLabel($bucket);
-        }
-
-        $extra = config('boi_files.allowed_target_buckets', []);
-        if (! is_array($extra)) {
-            $extra = [];
-        }
-
-        $default = self::defaultBucket();
-        $normalizedExtras = array_map(self::normalizeBucketName(...), $extra);
-        $all = array_values(array_unique(array_filter([$default, ...$normalizedExtras])));
-
-        return in_array($bucket, $all, true);
+        return self::isDnsCompliantS3BucketLabel($bucket);
     }
 
     /**
