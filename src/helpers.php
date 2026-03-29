@@ -86,6 +86,27 @@ if (! function_exists('boi_files_api_view_url')) {
     }
 }
 
+if (! function_exists('boi_files_resolved_bank_statement_view_bucket')) {
+    /**
+     * Bucket name for boi-api–stored statement keys (Inertia `boiFilesBankStatementViewParams`, Nova view links).
+     * Uses {@see config('boi_files.bank_statement_view_bucket')} when set; otherwise the {@see boi_files.boi_api_disk} bucket.
+     */
+    function boi_files_resolved_bank_statement_view_bucket(): string
+    {
+        $b = trim((string) config('boi_files.bank_statement_view_bucket', ''));
+        if ($b !== '') {
+            return $b;
+        }
+
+        $disk = trim((string) config('boi_files.boi_api_disk', 'boiapi'));
+        if ($disk === '') {
+            $disk = 'boiapi';
+        }
+
+        return trim((string) config("filesystems.disks.{$disk}.bucket", ''));
+    }
+}
+
 if (! function_exists('clean_request_arrays')) {
     function clean_request_arrays(Request $request, array $keys): void
     {
@@ -264,7 +285,7 @@ if (! function_exists('boi_inertia_shared_props')) {
         $boiKey = (string) config('boi_proxy.key', '');
         $proxy = ($boiUrl !== '' && $boiKey !== '') ? rtrim(URL::to('/api/boi-api'), '/') : '';
 
-        $bankStatementViewBucket = trim((string) config('boi_files.bank_statement_view_bucket', ''));
+        $bankStatementViewBucket = boi_files_resolved_bank_statement_view_bucket();
         $boiFilesBankStatementViewParams = $bankStatementViewBucket !== ''
             ? ['bucket' => $bankStatementViewBucket]
             : new \stdClass();
