@@ -47,6 +47,13 @@ return [
     */
     'target_bucket' => env('BOI_FILES_TARGET_BUCKET', ''),
 
+    /*
+    | Optional override for POST /api/files/upload when context=bank_statement (boi-ui EDOC manual PDF).
+    | When empty, the browser proxy omits X-Boi-Files-Bucket so boi-api uses its default bucket (boiapi).
+    | Set only if bank statements must land in a different bucket than boi-api’s AWS_BUCKET.
+    */
+    'bank_statement_target_bucket' => trim((string) env('BOI_FILES_BANK_STATEMENT_BUCKET', '')),
+
     'delegate_timeout' => (int) env('BOI_FILES_DELEGATE_TIMEOUT', 300),
 
     /*
@@ -55,6 +62,12 @@ return [
     |--------------------------------------------------------------------------
     */
     'accept_target_bucket' => filter_var(env('BOI_FILES_ACCEPT_TARGET_BUCKET', false), FILTER_VALIDATE_BOOLEAN),
+
+    /*
+    | When true, any DNS-compliant S3 bucket name is accepted (IAM still limits what works).
+    | When false, only the default bucket plus BOI_FILES_ALLOWED_BUCKETS may be used.
+    */
+    'allow_any_target_bucket' => filter_var(env('BOI_FILES_ALLOW_ANY_TARGET_BUCKET', false), FILTER_VALIDATE_BOOLEAN),
 
     'allowed_target_buckets' => array_values(array_filter(array_map('trim', explode(',', (string) env('BOI_FILES_ALLOWED_BUCKETS', ''))))),
 

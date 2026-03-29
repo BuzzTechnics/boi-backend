@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Builds and caches S3 disks that share credentials with the app’s configured upload disk
- * ({@see config('boi_files.disk')}) but use a different bucket, when that bucket is allow-listed.
+ * ({@see config('boi_files.disk')}) but use a different bucket, when that bucket is allow-listed
+ * or {@see config('boi_files.allow_any_target_bucket')} is enabled (boi-api).
  */
 final class DynamicS3Filesystem
 {
@@ -89,6 +90,7 @@ final class DynamicS3Filesystem
                 'requested' => $bucket,
                 'default_bucket' => $defaultBucket,
                 'allowed_extras' => config('boi_files.allowed_target_buckets', []),
+                'allow_any' => (bool) config('boi_files.allow_any_target_bucket', false),
             ]);
 
             abort(422, 'The requested storage bucket is not allowed.');
@@ -128,6 +130,10 @@ final class DynamicS3Filesystem
             return false;
         }
 
+        if (filter_var(config('boi_files.allow_any_target_bucket', false), FILTER_VALIDATE_BOOLEAN)) {
+            return self::isDnsCompliantS3BucketLabel($bucket);
+        }
+
         $extra = config('boi_files.allowed_target_buckets', []);
         if (! is_array($extra)) {
             $extra = [];
@@ -138,6 +144,19 @@ final class DynamicS3Filesystem
         $all = array_values(array_unique(array_filter([$default, ...$normalizedExtras])));
 
         return in_array($bucket, $all, true);
+    }
+
+    /**
+     * S3 DNS-style bucket name rules (simplified): 3–63 chars, lowercase alnum, dot, hyphen; labels separated by dots.
+     */
+    private static function isDnsCompliantS3BucketLabel(string $bucket): bool
+    {
+        $len = strlen($bucket);
+        if ($len < 3 || $len > 63) {
+            return false;
+        }
+
+        return (bool) preg_match('/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/', $bucket);
     }
 
     private static function normalizeBucketName(string|int|float $bucket): string

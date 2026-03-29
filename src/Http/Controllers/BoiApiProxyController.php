@@ -2,6 +2,7 @@
 
 namespace Boi\Backend\Http\Controllers;
 
+use Boi\Backend\Support\BoiFileHeaders;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\HttpFoundation\Response;
@@ -72,6 +73,8 @@ final class BoiApiProxyController
                 $appH => (string) config('boi_proxy.app', 'app'),
             ];
         }
+
+        $this->applyBoiFilesTargetBucketHeader($request, $headers, $path);
 
         if (count($request->allFiles()) > 0) {
             $pending = Http::timeout($timeout)
@@ -158,5 +161,35 @@ final class BoiApiProxyController
         if (! $owns) {
             abort(403);
         }
+    }
+
+    /**
+     * Forwards {@see config('boi_files.target_bucket')} as {@see BoiFileHeaders::TARGET_BUCKET} for most uploads.
+     * When the multipart field `context` is `bank_statement` (boi-ui EDOC manual PDF), omits the header
+     * unless {@see config('boi_files.bank_statement_target_bucket')} is set, so boi-api uses its default S3 bucket.
+     */
+    private function applyBoiFilesTargetBucketHeader(Request $request, array &$headers, string $path): void
+    {
+        if (! str_starts_with($path, 'api/files/')) {
+            return;
+        }
+
+        $isBankStatement = trim((string) $request->input('context', '')) === 'bank_statement';
+
+        if ($isBankStatement) {
+            $explicit = trim((string) config('boi_files.bank_statement_target_bucket', ''));
+            if ($explicit !== '') {
+                $headers[BoiFileHeaders::TARGET_BUCKET] = $explicit;
+            }
+
+            return;
+        }
+
+        $target = trim((string) config('boi_files.target_bucket', ''));
+        if ($target === '') {
+            return;
+        }
+
+        $headers[BoiFileHeaders::TARGET_BUCKET] = $target;
     }
 }
