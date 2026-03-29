@@ -256,7 +256,7 @@ if (! function_exists('boi_inertia_shared_props')) {
     /**
      * Props for Inertia apps using boi-api proxy (merge into {@see Middleware\HandleInertiaRequests::share}).
      *
-     * @return array{boiProxy: string}
+     * @return array{boiProxy: string, boiFilesApiBase: string, boiFilesBankStatementViewParams: array<string, string>|\stdClass}
      */
     function boi_inertia_shared_props(): array
     {
@@ -264,9 +264,15 @@ if (! function_exists('boi_inertia_shared_props')) {
         $boiKey = (string) config('boi_proxy.key', '');
         $proxy = ($boiUrl !== '' && $boiKey !== '') ? rtrim(URL::to('/api/boi-api'), '/') : '';
 
+        $bankStatementViewBucket = trim((string) config('boi_files.bank_statement_view_bucket', ''));
+        $boiFilesBankStatementViewParams = $bankStatementViewBucket !== ''
+            ? ['bucket' => $bankStatementViewBucket]
+            : new \stdClass();
+
         return [
             'boiProxy' => $proxy,
             'boiFilesApiBase' => boi_files_browser_api_base(),
+            'boiFilesBankStatementViewParams' => $boiFilesBankStatementViewParams,
         ];
     }
 }

@@ -174,6 +174,16 @@ final class BoiApiProxyController
             return;
         }
 
+        // Presigned view: object may live on boi-api default bucket while uploads catalog uses app bucket — honor ?bucket=.
+        if (str_starts_with($path, 'api/files/view')) {
+            $qBucket = trim((string) $request->query('bucket', ''));
+            if ($qBucket !== '') {
+                $headers[BoiFileHeaders::TARGET_BUCKET] = $qBucket;
+
+                return;
+            }
+        }
+
         $isBankStatement = trim((string) $request->input('context', '')) === 'bank_statement';
 
         if ($isBankStatement) {
