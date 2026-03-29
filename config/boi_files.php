@@ -57,12 +57,9 @@ return [
     /*
     | S3 bucket for GET /api/files/view when the key is on boi-api’s default bucket (manual EDOC bank_statement PDF).
     | Sent to the browser as Inertia `boiFilesBankStatementViewParams` → FileInput viewExtraParams `bucket`.
-    | Defaults to BOI_API_AWS_BUCKET when set on the host app (same as manual upload target).
+    | Use the same value as the host `boiapi` disk / BOI_API_AWS_BUCKET.
     */
-    'bank_statement_view_bucket' => trim((string) env(
-        'BOI_FILES_BANK_STATEMENT_VIEW_BUCKET',
-        env('BOI_API_AWS_BUCKET', '')
-    )),
+    'bank_statement_view_bucket' => trim((string) env('BOI_API_AWS_BUCKET', '')),
 
     'delegate_timeout' => (int) env('BOI_FILES_DELEGATE_TIMEOUT', 300),
 
