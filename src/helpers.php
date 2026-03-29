@@ -59,7 +59,7 @@ if (! function_exists('boi_files_api_view_url')) {
     /**
      * View URL for a stored file path (boi-ui {@see filesApi.view} / Inertia `boiProxy`).
      *
-     * @param  string|null  $targetBucket  When set, appended as `bucket` query for boi-api dynamic S3 disks.
+     * @param  string|null  $targetBucket  When set, appended as {@see \Boi\Backend\Support\BoiFileQueryParams::TID} query for boi-api dynamic S3 disks.
      */
     function boi_files_api_view_url(?string $stored, ?string $targetBucket = null): ?string
     {
@@ -74,7 +74,7 @@ if (! function_exists('boi_files_api_view_url')) {
         $bucket = $targetBucket !== null && trim((string) $targetBucket) !== '' ? trim((string) $targetBucket) : null;
         $suffix = '/api/files/view?path='.rawurlencode($stored);
         if ($bucket !== null) {
-            $suffix .= '&bucket='.rawurlencode($bucket);
+            $suffix .= '&'.\Boi\Backend\Support\BoiFileQueryParams::TID.'='.rawurlencode($bucket);
         }
 
         $base = boi_files_browser_api_base();
@@ -277,7 +277,7 @@ if (! function_exists('boi_inertia_shared_props')) {
     /**
      * Props for Inertia apps using boi-api proxy (merge into {@see Middleware\HandleInertiaRequests::share}).
      *
-     * @return array{boiProxy: string, boiFilesApiBase: string, boiFilesBankStatementViewParams: array<string, string>|\stdClass}
+     * @return array{boiProxy: string, boiFilesApiBase: string, boiFilesBankStatementViewParams: array{tid?: string}|\stdClass}
      */
     function boi_inertia_shared_props(): array
     {
@@ -287,7 +287,7 @@ if (! function_exists('boi_inertia_shared_props')) {
 
         $bankStatementViewBucket = boi_files_resolved_bank_statement_view_bucket();
         $boiFilesBankStatementViewParams = $bankStatementViewBucket !== ''
-            ? ['bucket' => $bankStatementViewBucket]
+            ? [\Boi\Backend\Support\BoiFileQueryParams::TID => $bankStatementViewBucket]
             : new \stdClass();
 
         return [

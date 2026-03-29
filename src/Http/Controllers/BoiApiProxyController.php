@@ -3,6 +3,7 @@
 namespace Boi\Backend\Http\Controllers;
 
 use Boi\Backend\Support\BoiFileHeaders;
+use Boi\Backend\Support\BoiFileQueryParams;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\HttpFoundation\Response;
@@ -174,9 +175,12 @@ final class BoiApiProxyController
             return;
         }
 
-        // Presigned view: object may live on boi-api default bucket while uploads catalog uses app bucket — honor ?bucket=.
+        // Presigned view: object may live on boi-api default bucket while uploads catalog uses app bucket — honor ?tid= (legacy ?bucket=).
         if (str_starts_with($path, 'api/files/view')) {
-            $qBucket = trim((string) $request->query('bucket', ''));
+            $qBucket = trim((string) $request->query(BoiFileQueryParams::TID, ''));
+            if ($qBucket === '') {
+                $qBucket = trim((string) $request->query('bucket', ''));
+            }
             if ($qBucket !== '') {
                 $headers[BoiFileHeaders::TARGET_BUCKET] = $qBucket;
 

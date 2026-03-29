@@ -5,6 +5,7 @@ namespace Boi\Backend\Http\Controllers;
 use Boi\Backend\Services\BoiFileApiDelegator;
 use Boi\Backend\Services\FileService;
 use Boi\Backend\Support\BoiFileHeaders;
+use Boi\Backend\Support\BoiFileQueryParams;
 use Boi\Backend\Support\BoiFilesTrace;
 use Boi\Backend\Support\DynamicS3Filesystem;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * File upload and presigned redirect: optionally delegates to boi-api when {@see BoiFileApiDelegator::shouldDelegate()},
- * otherwise stores on the host disk. On boi-api, set {@see config('boi_files.accept_target_bucket')} for X-Boi-Files-Bucket / ?bucket=.
+ * otherwise stores on the host disk. On boi-api, set {@see config('boi_files.accept_target_bucket')} for X-Boi-Files-Bucket / {@see BoiFileQueryParams::TID}.
  * to target alternate S3 buckets via trusted header/query.
  *
  * Registered by {@see BoiBackendServiceProvider} unless {@see config('boi_backend.register_file_routes')} is false.
@@ -130,12 +131,15 @@ final class FileController extends Controller
     private function resolveFilesystem(Request $request): Filesystem
     {
         if (config('boi_files.accept_target_bucket')) {
-            $bucket = $request->header(BoiFileHeaders::TARGET_BUCKET) ?: $request->query('bucket');
+            $bucket = $request->header(BoiFileHeaders::TARGET_BUCKET)
+                ?: $request->query(BoiFileQueryParams::TID)
+                ?: $request->query('bucket');
             $bucket = is_string($bucket) ? trim($bucket) : '';
 
             BoiFilesTrace::log('resolve_filesystem', [
                 'header_bucket' => $request->header(BoiFileHeaders::TARGET_BUCKET),
-                'query_bucket' => $request->query('bucket'),
+                'query_tid' => $request->query(BoiFileQueryParams::TID),
+                'query_bucket_legacy' => $request->query('bucket'),
                 'resolved_input' => $bucket !== '' ? $bucket : null,
                 'boi_files_disk' => config('boi_files.disk'),
             ]);

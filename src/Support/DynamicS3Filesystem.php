@@ -61,7 +61,7 @@ final class DynamicS3Filesystem
 
         /*
          * No bucket name in config (e.g. AWS_BUCKET unset): we cannot tell whether a header matches
-         * “the default”, so ignore X-Boi-Files-Bucket / ?bucket= and use the configured disk.
+         * “the default”, so ignore X-Boi-Files-Bucket / ?tid= and use the configured disk.
          */
         if ($defaultBucket === '') {
             BoiFilesTrace::log('dynamic_s3.branch', [

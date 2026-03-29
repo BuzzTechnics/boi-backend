@@ -3,6 +3,7 @@
 namespace Boi\Backend\Services;
 
 use Boi\Backend\Support\BoiFileHeaders;
+use Boi\Backend\Support\BoiFileQueryParams;
 use Boi\Backend\Support\BoiFilesTrace;
 use Boi\Backend\Support\BoiIntegrationsClient;
 use Illuminate\Http\JsonResponse;
@@ -157,7 +158,7 @@ final class BoiFileApiDelegator
 
         $query = ['path' => $path];
         if ($b = self::targetBucketForDelegation()) {
-            $query['bucket'] = $b;
+            $query[BoiFileQueryParams::TID] = $b;
         }
 
         $baseUrl = rtrim((string) config('boi_proxy.url', ''), '/');
@@ -166,7 +167,7 @@ final class BoiFileApiDelegator
         BoiFilesTrace::log('delegate.view.request', [
             'upstream_host' => $upstreamHost,
             'query_keys' => array_keys($query),
-            'bucket_query' => $query['bucket'] ?? null,
+            'tid_query' => $query[BoiFileQueryParams::TID] ?? null,
         ]);
 
         $response = $http->timeout($timeout)
