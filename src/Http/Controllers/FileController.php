@@ -28,8 +28,13 @@ final class FileController extends Controller
         $context = $request->input('context');
         $maxKb = config("boi_files.upload.contexts.{$context}", config('boi_files.upload.max_size_kb', 10240));
 
+        $fileRules = ['required', 'file', "max:{$maxKb}"];
+        if ($context === 'bank_statement') {
+            $fileRules[] = 'mimes:pdf';
+        }
+
         $request->validate([
-            'file' => ['required', 'file', "max:{$maxKb}"],
+            'file' => $fileRules,
             'folder' => 'nullable|string',
             'context' => 'nullable|string',
         ]);
