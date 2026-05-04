@@ -2,11 +2,18 @@
 
 namespace Boi\Backend\Models;
 
+use Boi\Backend\Models\Concerns\UsesBoiApiDatabase;
 use Illuminate\Database\Eloquent\Model;
 
 /**
  * One row per Edoc HTTP call. Written by EdocCallLogger; surfaced via the
  * Nova\EdocCall resource in host apps that have Nova installed.
+ *
+ * Model uses UsesBoiApiDatabase so consuming apps that have a `boi_api`
+ * connection configured (typically glow / spaf) read and write to the
+ * shared boi-api edoc_calls table — giving every Nova UI a single global
+ * view. Hosts without that connection (boi-api itself, boi-online-portal)
+ * fall back to their own default DB.
  *
  * @property string $project
  * @property string $method
@@ -22,6 +29,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class EdocCall extends Model
 {
+    use UsesBoiApiDatabase;
+
     protected $table = 'edoc_calls';
 
     public $timestamps = false;
