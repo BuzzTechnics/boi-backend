@@ -36,4 +36,16 @@ return [
 
     'extra_api_middleware' => [],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Project name used in edoc_calls.project
+    |--------------------------------------------------------------------------
+    |
+    | Stamped on every row written by EdocCallLogger so a single dashboard can
+    | distinguish Edoc traffic across boi-api / glow / spaf / boi-online-portal.
+    | Falls back to config('app.name') when unset.
+    |
+    */
+    'project' => env('BOI_BACKEND_PROJECT'),
+
 ];
