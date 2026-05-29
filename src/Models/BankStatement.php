@@ -41,6 +41,7 @@ class BankStatement extends Model
         'csv_url',
         'consent_id',
         'edoc_status',
+        'edoc_error',
         'statement_generated',
     ];
 
