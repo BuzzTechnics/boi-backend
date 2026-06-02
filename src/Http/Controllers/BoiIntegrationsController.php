@@ -4,6 +4,7 @@ namespace Boi\Backend\Http\Controllers;
 
 use Boi\Backend\Services\BOI;
 use Boi\Backend\Support\BoiIntegrationsClient;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,9 @@ use Illuminate\Validation\ValidationException;
  */
 class BoiIntegrationsController extends Controller
 {
+    /** Shown when identity verification can't be reached (boi-api down, or its upstream gateway timed out). */
+    private const VERIFICATION_UNAVAILABLE = 'Identity verification is temporarily unavailable. Please try again in a few minutes.';
+
     public function boiValidate(Request $request): JsonResponse
     {
         $request->validate([
@@ -32,16 +36,28 @@ class BoiIntegrationsController extends Controller
         $token = $request->header('X-XSRF-TOKEN');
 
         if ($http = BoiIntegrationsClient::http()) {
-            $upstream = $http->post('/api/identity/validate', [
-                'bvn' => $request->bvn,
-                'nin' => $request->nin,
-            ]);
+            try {
+                $upstream = $http->post('/api/identity/validate', [
+                    'bvn' => $request->bvn,
+                    'nin' => $request->nin,
+                ]);
+            } catch (ConnectionException $e) {
+                // boi-api itself unreachable / timed out.
+                return response()->json(['message' => self::VERIFICATION_UNAVAILABLE], 503);
+            }
 
             if ($upstream->failed()) {
-                return response()->json(
-                    $upstream->json() ?? ['message' => 'Upstream error'],
-                    $upstream->status() ?: 502
-                );
+                $status = $upstream->status();
+                $body = $upstream->json();
+                $message = is_array($body) ? ($body['message'] ?? null) : null;
+
+                // Never surface a bare 5xx / "Server Error" to the applicant — that
+                // usually means the upstream verification gateway is down or timed out.
+                if ($status >= 500 || $message === null || $message === '' || strcasecmp((string) $message, 'Server Error') === 0) {
+                    return response()->json(['message' => self::VERIFICATION_UNAVAILABLE], 503);
+                }
+
+                return response()->json($body, $status ?: 502);
             }
 
             $result = $upstream->json();
