@@ -101,14 +101,20 @@ class BOI
     {
         try {
             $base = config('boi_integrations.boi_thirdparty.api_base_url');
-            $response = Http::timeout((int) config('boi_integrations.boi_thirdparty.http_timeout', 120))
-                ->withHeaders([
-                    'Authorization' => 'Bearer '.self::getToken(),
-                    'Content-Type' => 'application/json',
-                ])
-                ->post($base.'/api/ThirdPartyAPI/CheckCustomerBVN?bvn='.$bvn)
-                ->throw()
-                ->json();
+            $url = $base.'/api/ThirdPartyAPI/CheckCustomerBVN?bvn='.$bvn;
+            $response = BvnNinCallLogger::record(
+                kind: 'bvn',
+                identifier: $bvn,
+                endpoint: $url,
+                method: 'POST',
+                payload: null,
+                call: fn () => Http::timeout((int) config('boi_integrations.boi_thirdparty.http_timeout', 120))
+                    ->withHeaders([
+                        'Authorization' => 'Bearer '.self::getToken(),
+                        'Content-Type' => 'application/json',
+                    ])
+                    ->post($url),
+            )->throw()->json();
 
             if (isset($response['message']) && $response['message'] != 'Successful') {
                 $response['message'] = 'validation failed. no record found for this number ';
@@ -127,14 +133,20 @@ class BOI
     {
         try {
             $base = config('boi_integrations.boi_thirdparty.api_base_url');
-            $response = Http::timeout((int) config('boi_integrations.boi_thirdparty.http_timeout', 120))
-                ->withHeaders([
-                    'Authorization' => 'Bearer '.self::getToken(),
-                    'Content-Type' => 'application/json',
-                ])
-                ->post($base.'/api/ThirdPartyAPI/CheckCustomerNIN?nin='.$nin)
-                ->throw()
-                ->json();
+            $url = $base.'/api/ThirdPartyAPI/CheckCustomerNIN?nin='.$nin;
+            $response = BvnNinCallLogger::record(
+                kind: 'nin',
+                identifier: $nin,
+                endpoint: $url,
+                method: 'POST',
+                payload: null,
+                call: fn () => Http::timeout((int) config('boi_integrations.boi_thirdparty.http_timeout', 120))
+                    ->withHeaders([
+                        'Authorization' => 'Bearer '.self::getToken(),
+                        'Content-Type' => 'application/json',
+                    ])
+                    ->post($url),
+            )->throw()->json();
 
             if (isset($response['message']) && $response['message'] != 'Successful') {
                 $response['message'] = 'validation failed. no record found for this number ';

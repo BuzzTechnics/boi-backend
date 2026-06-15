@@ -56,6 +56,13 @@ class EdocCallLogger
         callable $call,
         ?int $userId = null,
     ): Response {
+        // Scope: only the eDoc "get transactions" endpoint is persisted to
+        // edoc_calls. Every other eDoc call still runs normally — it just
+        // isn't recorded — so the audit trail stays focused on transactions.
+        if (! self::isRecordableEndpoint($endpoint)) {
+            return $call();
+        }
+
         $start = microtime(true);
         $row = [
             'project' => self::projectName(),
@@ -103,6 +110,17 @@ class EdocCallLogger
                 ]);
             }
         }
+    }
+
+    /**
+     * Only the eDoc "get transactions" endpoint
+     * (/v1/external/consent/{consentId}/transactions) is recorded.
+     */
+    private static function isRecordableEndpoint(string $endpoint): bool
+    {
+        $path = strtok($endpoint, '?');
+
+        return is_string($path) && str_ends_with(rtrim($path, '/'), '/transactions');
     }
 
     private static function projectName(): string
