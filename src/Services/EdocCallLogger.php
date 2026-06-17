@@ -56,9 +56,10 @@ class EdocCallLogger
         callable $call,
         ?int $userId = null,
     ): Response {
-        // Scope: only the eDoc "get transactions" endpoint is persisted to
-        // edoc_calls. Every other eDoc call still runs normally — it just
-        // isn't recorded — so the audit trail stays focused on transactions.
+        // Scope: only the eDoc "get transactions" (metrics) and consolidated-
+        // statement ("consolidate") endpoints are persisted to edoc_calls. Every
+        // other eDoc call still runs normally — it just isn't recorded — so the
+        // audit trail stays focused on those two.
         if (! self::isRecordableEndpoint($endpoint)) {
             return $call();
         }
@@ -113,18 +114,43 @@ class EdocCallLogger
     }
 
     /**
-     * Only the eDoc "get transactions" endpoint
-     * (/v1/external/consent/{consentId}/transactions) is recorded.
+     * Only two eDoc endpoints are recorded:
+     *  - get transactions / metrics: /v1/external/consent/{consentId}/transactions
+     *  - consolidated statement ("consolidate"): /v1/external/consent/getConsolidatedMetrics
+     * Everything else (banks, initialize, attachAccount, dashboard, consent CRUD,
+     * csvUrl, the separate /consent/metrics PDF call, manual upload) is ignored.
      */
     private static function isRecordableEndpoint(string $endpoint): bool
     {
         $path = strtok($endpoint, '?');
 
-        return is_string($path) && str_ends_with(rtrim($path, '/'), '/transactions');
+        if (! is_string($path)) {
+            return false;
+        }
+
+        $path = rtrim($path, '/');
+
+        return str_ends_with($path, '/transactions')
+            || str_contains(strtolower($path), 'consolidat');
     }
 
     private static function projectName(): string
     {
+        // Attribute the row to the ORIGINATING caller. When a request is proxied
+        // through boi-api on behalf of another app (glow, spaf, …), the proxy
+        // forwards that app's identity in the X-Boi-App header. Prefer it so the
+        // call is recorded as 'glow' (etc.) rather than the host that happens to
+        // make the outbound eDoc request ('boi-api'). New apps work automatically
+        // as long as they set BOI_APP. Falls back to local config when absent
+        // (direct calls, jobs) — the default header value 'app' is treated as unset.
+        if (function_exists('request')) {
+            $appHeader = (string) config('boi_proxy.app_header', 'X-Boi-App');
+            $caller = request()?->header($appHeader);
+            if (is_string($caller) && $caller !== '' && strtolower($caller) !== 'app') {
+                return $caller;
+            }
+        }
+
         $configured = config('boi_backend.project');
         if (is_string($configured) && $configured !== '') {
             return $configured;
