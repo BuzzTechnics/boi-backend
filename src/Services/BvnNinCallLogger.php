@@ -148,6 +148,20 @@ class BvnNinCallLogger
 
     private static function projectName(): string
     {
+        // Attribute the row to the ORIGINATING caller. When a request is proxied
+        // through boi-api on behalf of another app (glow, spaf, …), the proxy
+        // forwards that app's identity in the X-Boi-App header. Prefer it so the
+        // call is recorded as 'glow' (etc.) rather than the host that happens to
+        // make the outbound BVN/NIN request ('boi-api'). Falls back to local
+        // config when absent (direct calls, jobs); the default 'app' is treated as unset.
+        if (function_exists('request')) {
+            $appHeader = (string) config('boi_proxy.app_header', 'X-Boi-App');
+            $caller = request()?->header($appHeader);
+            if (is_string($caller) && $caller !== '' && strtolower($caller) !== 'app') {
+                return $caller;
+            }
+        }
+
         $configured = config('boi_backend.project');
         if (is_string($configured) && $configured !== '') {
             return $configured;
