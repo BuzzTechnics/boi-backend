@@ -56,7 +56,7 @@ class EdocCall extends Resource
         return [
             ID::make()->sortable(),
 
-            DateTime::make('When', 'created_at')->sortable(),
+            DateTime::make('When', 'created_at')->sortable()->filterable(),
 
             Text::make('Project')->sortable()->filterable(),
 
