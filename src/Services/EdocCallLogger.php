@@ -56,10 +56,10 @@ class EdocCallLogger
         callable $call,
         ?int $userId = null,
     ): Response {
-        // Scope: only the eDoc "get transactions" (metrics) and consolidated-
-        // statement ("consolidate") endpoints are persisted to edoc_calls. Every
-        // other eDoc call still runs normally — it just isn't recorded — so the
-        // audit trail stays focused on those two.
+        // Scope: only the eDoc "get transactions" and consolidated-statement
+        // endpoints are persisted to edoc_calls — these are the billed calls we
+        // need an audit trail for. Every other eDoc call still runs normally — it
+        // just isn't recorded.
         if (! self::isRecordableEndpoint($endpoint)) {
             return $call();
         }
@@ -114,11 +114,14 @@ class EdocCallLogger
     }
 
     /**
-     * Only two eDoc endpoints are recorded:
-     *  - get transactions / metrics: /v1/external/consent/{consentId}/transactions
-     *  - consolidated statement ("consolidate"): /v1/external/consent/getConsolidatedMetrics
+     * Only the billed eDoc endpoints are recorded:
+     *  - get transactions:            /v1/external/consent/{consentId}/transactions
+     *  - consolidated statement PDF:  /v1/external/consent/metrics  (boi-api/glow's
+     *    getConsolidatedMetrics — NOTE the path is /metrics, it has no "consolidat"
+     *    in it, so it must be matched by the /metrics suffix, not by string match)
+     *  - getConsolidatedMetrics (by-email variant): /v1/external/consent/getConsolidatedMetrics
      * Everything else (banks, initialize, attachAccount, dashboard, consent CRUD,
-     * csvUrl, the separate /consent/metrics PDF call, manual upload) is ignored.
+     * csvUrl, manual upload) is ignored.
      */
     private static function isRecordableEndpoint(string $endpoint): bool
     {
@@ -131,6 +134,7 @@ class EdocCallLogger
         $path = rtrim($path, '/');
 
         return str_ends_with($path, '/transactions')
+            || str_ends_with($path, '/metrics')
             || str_contains(strtolower($path), 'consolidat');
     }
 

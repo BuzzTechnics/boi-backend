@@ -19,14 +19,14 @@ beforeEach(function () {
 
 it('persists a successful call with timing, status, and scrubbed payload', function () {
     Http::fake([
-        'edoc.example.com/v1/external/master/banks' => Http::response(['banks' => [['id' => 1]]], 200),
+        'edoc.example.com/v1/external/consent/abc/transactions' => Http::response(['data' => [['id' => 1]]], 200),
     ]);
 
     $response = EdocCallLogger::record(
-        endpoint: 'https://edoc.example.com/v1/external/master/banks',
-        method: 'GET',
+        endpoint: 'https://edoc.example.com/v1/external/consent/abc/transactions',
+        method: 'POST',
         payload: ['email' => 'jane@example.com', 'bvn' => '12345678901', 'token' => 'super-secret'],
-        call: fn () => Http::get('https://edoc.example.com/v1/external/master/banks'),
+        call: fn () => Http::post('https://edoc.example.com/v1/external/consent/abc/transactions'),
     );
 
     expect($response->status())->toBe(200);
@@ -34,8 +34,8 @@ it('persists a successful call with timing, status, and scrubbed payload', funct
     $row = EdocCall::query()->latest('id')->first();
     expect($row)->not->toBeNull();
     expect($row->project)->toBe('tests');
-    expect($row->method)->toBe('GET');
-    expect($row->endpoint)->toBe('https://edoc.example.com/v1/external/master/banks');
+    expect($row->method)->toBe('POST');
+    expect($row->endpoint)->toBe('https://edoc.example.com/v1/external/consent/abc/transactions');
     expect($row->response_status)->toBe(200);
     expect($row->succeeded)->toBeTrue();
     expect($row->duration_ms)->toBeGreaterThanOrEqual(0);
@@ -44,16 +44,49 @@ it('persists a successful call with timing, status, and scrubbed payload', funct
     expect($row->request_payload['email'])->toBe('jane@example.com');
 });
 
+it('records the consolidated-statement /metrics endpoint (no "consolidat" in the path)', function () {
+    Http::fake([
+        'edoc.example.com/v1/external/consent/metrics' => Http::response(['pdfBuffer' => ['data' => []]], 200),
+    ]);
+
+    EdocCallLogger::record(
+        endpoint: 'https://edoc.example.com/v1/external/consent/metrics',
+        method: 'POST',
+        payload: ['consentIds' => ['abc']],
+        call: fn () => Http::post('https://edoc.example.com/v1/external/consent/metrics'),
+    );
+
+    $row = EdocCall::query()->latest('id')->first();
+    expect($row)->not->toBeNull();
+    expect($row->endpoint)->toBe('https://edoc.example.com/v1/external/consent/metrics');
+});
+
+it('does NOT persist non-billed endpoints but still executes them', function () {
+    Http::fake([
+        'edoc.example.com/v1/external/master/banks' => Http::response(['banks' => []], 200),
+    ]);
+
+    $response = EdocCallLogger::record(
+        endpoint: 'https://edoc.example.com/v1/external/master/banks',
+        method: 'GET',
+        payload: null,
+        call: fn () => Http::get('https://edoc.example.com/v1/external/master/banks'),
+    );
+
+    expect($response->status())->toBe(200);
+    expect(EdocCall::query()->count())->toBe(0);
+});
+
 it('persists a failed call when the gateway returns a non-2xx status', function () {
     Http::fake([
         '*' => Http::response(['message' => 'gone'], 410),
     ]);
 
     $response = EdocCallLogger::record(
-        endpoint: 'https://edoc.example.com/foo',
+        endpoint: 'https://edoc.example.com/v1/external/consent/abc/transactions',
         method: 'POST',
         payload: ['x' => 1],
-        call: fn () => Http::post('https://edoc.example.com/foo', ['x' => 1]),
+        call: fn () => Http::post('https://edoc.example.com/v1/external/consent/abc/transactions', ['x' => 1]),
     );
 
     expect($response->status())->toBe(410);
@@ -64,7 +97,7 @@ it('persists a failed call when the gateway returns a non-2xx status', function 
 
 it('persists a row and re-throws when the callback throws', function () {
     expect(fn () => EdocCallLogger::record(
-        endpoint: 'https://edoc.example.com/explode',
+        endpoint: 'https://edoc.example.com/v1/external/consent/abc/transactions',
         method: 'POST',
         payload: null,
         call: function () {
