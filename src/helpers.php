@@ -159,9 +159,18 @@ if (! function_exists('split_name')) {
 if (! function_exists('rounded_currency')) {
     function rounded_currency($value): ?string
     {
-        return $value !== null
-            ? '₦'.number_format(BigDecimal::of($value)->toScale(2, RoundingMode::DOWN)->toFloat(), 2)
-            : null;
+        if ($value === null) {
+            return null;
+        }
+
+        // brick/math renamed RoundingMode cases UPPER_CASE -> PascalCase (0.12 vs 0.17),
+        // and pre-0.12 exposed them as int class constants. Resolve whichever exists so
+        // this helper works across every brick/math version in the fleet.
+        $mode = defined(RoundingMode::class.'::Down')
+            ? constant(RoundingMode::class.'::Down')
+            : constant(RoundingMode::class.'::DOWN');
+
+        return '₦'.number_format(BigDecimal::of($value)->toScale(2, $mode)->toFloat(), 2);
     }
 }
 
