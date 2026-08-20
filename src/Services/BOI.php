@@ -99,31 +99,7 @@ class BOI
      */
     public static function customerBvn(string $bvn): array
     {
-        try {
-            $base = config('boi_integrations.boi_thirdparty.api_base_url');
-            $url = $base.'/api/ThirdPartyAPI/CheckCustomerBVN?bvn='.$bvn;
-            $response = BvnNinCallLogger::record(
-                kind: 'bvn',
-                identifier: $bvn,
-                endpoint: $url,
-                method: 'POST',
-                payload: null,
-                call: fn () => Http::timeout((int) config('boi_integrations.boi_thirdparty.http_timeout', 120))
-                    ->withHeaders([
-                        'Authorization' => 'Bearer '.self::getToken(),
-                        'Content-Type' => 'application/json',
-                    ])
-                    ->post($url),
-            )->throw()->json();
-
-            if (isset($response['message']) && $response['message'] != 'Successful') {
-                $response['message'] = 'validation failed. no record found for this number ';
-            }
-
-            return $response;
-        } catch (\Exception $e) {
-            throw $e;
-        }
+        return self::identityDetails('bvn', $bvn);
     }
 
     /**
@@ -131,31 +107,67 @@ class BOI
      */
     public static function customerNin(string $nin): array
     {
-        try {
-            $base = config('boi_integrations.boi_thirdparty.api_base_url');
-            $url = $base.'/api/ThirdPartyAPI/CheckCustomerNIN?nin='.$nin;
-            $response = BvnNinCallLogger::record(
-                kind: 'nin',
-                identifier: $nin,
-                endpoint: $url,
-                method: 'POST',
-                payload: null,
-                call: fn () => Http::timeout((int) config('boi_integrations.boi_thirdparty.http_timeout', 120))
-                    ->withHeaders([
-                        'Authorization' => 'Bearer '.self::getToken(),
-                        'Content-Type' => 'application/json',
-                    ])
-                    ->post($url),
-            )->throw()->json();
+        return self::identityDetails('nin', $nin);
+    }
 
-            if (isset($response['message']) && $response['message'] != 'Successful') {
-                $response['message'] = 'validation failed. no record found for this number ';
-            }
+    /**
+     * BVN/NIN lookups live on the IdentityVerification.API gateway (the
+     * cac_verify_base_url host) since 2026-08-20: BOI removed
+     * /api/ThirdPartyAPI/CheckCustomer{BVN,NIN} from the :8249 service, and the
+     * identity gateway's GET /Verification/get-{bvn,nin}-details/{number} is the
+     * lookup replacement (same auth + credentials as CAC verification; each
+     * consuming application is provisioned its own user, e.g. GLOW).
+     *
+     * A miss is HTTP 404 ("BVN Details not found"), which throw() surfaces as a
+     * RequestException — the same failure path callers already handle. Hits are
+     * normalised to the legacy :8249 shape (`phone`, `home_address`,
+     * message='Successful') so downstream consumers are unchanged.
+     *
+     * @param  'bvn'|'nin'  $kind
+     * @return array<string, mixed>
+     */
+    private static function identityDetails(string $kind, string $number): array
+    {
+        $base = config('boi_integrations.boi_thirdparty.cac_verify_base_url');
+        $url = $base.'/Verification/get-'.$kind.'-details/'.$number;
+        $timeout = (int) config('boi_integrations.boi_thirdparty.http_timeout', 120);
 
-            return $response;
-        } catch (\Exception $e) {
-            throw $e;
+        $call = static fn () => Http::timeout($timeout)
+            ->connectTimeout(10)
+            ->withHeaders([
+                'Authorization' => 'Bearer '.self::getCacToken(),
+                'accept' => '*/*',
+            ])
+            ->get($url);
+
+        $record = static fn () => BvnNinCallLogger::record(
+            kind: $kind,
+            identifier: $number,
+            endpoint: $url,
+            method: 'GET',
+            payload: null,
+            call: $call,
+        );
+
+        $response = $record();
+
+        if ($response->status() === 401) {
+            // Stale cached gateway token: mint a fresh one and retry once.
+            Cache::forget(self::CAC_CACHE_KEY);
+            $response = $record();
         }
+
+        $body = $response->throw()->json();
+
+        if (! is_array($body)) {
+            return [];
+        }
+
+        $body['phone'] ??= $body['mobile'] ?? null;
+        $body['home_address'] ??= $body['addressLine'] ?? null;
+        $body['message'] = 'Successful';
+
+        return $body;
     }
 
     /**
