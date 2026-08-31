@@ -9,7 +9,17 @@ use Illuminate\Database\Eloquent\Builder;
  *
  * Expects {@see $filesQuery} to target a table with boolean columns:
  * {@code required}, {@code enterprise}, {@code ltd}, {@code above_10m}
- * (typical BOI loan application document catalog).
+ * (typical BOI loan application document catalog). The flags are audience
+ * selectors:
+ *   - {@code enterprise}: applies to enterprise-type applicants;
+ *   - {@code ltd}:        applies to Ltd applicants at or below ₦10m;
+ *   - {@code above_10m}:  applies to any applicant above ₦10m.
+ * A universal document sets all three; amount-swapped variants (e.g. the
+ * Means-of-ID documents) set complementary flags so exactly one variant
+ * surfaces per scenario. The {@code required} column is NOT a selector —
+ * every surfaced row is mandatory for its scenario, so it is normalized to
+ * true in the result. (Filtering on {@code required} before the flags was
+ * the bug that hid type-/amount-specific documents entirely.)
  */
 final class ApplicationFileRequirements
 {
@@ -24,36 +34,30 @@ final class ApplicationFileRequirements
         $isLtd = $businessType === 'ltd';
         $isAbove10m = $amount !== null && $amount > 10_000_000;
 
-        return $filesQuery
-            ->where('required', true)
+        if (! $isEnterprise && ! $isLtd) {
+            return [];
+        }
+
+        $files = $filesQuery
             ->where(function ($query) use ($isEnterprise, $isLtd, $isAbove10m) {
                 if ($isEnterprise) {
                     $query->orWhere('enterprise', true);
                 }
                 if ($isLtd) {
-                    if ($isAbove10m) {
-                        $query->orWhere(function ($q) {
-                            $q->where('ltd', true);
-                            $q->where('above_10m', true);
-                        });
-                        $query->orWhere(function ($q) {
-                            $q->where('ltd', false);
-                            $q->where('above_10m', true);
-                        });
-                    } else {
-                        $query->orWhere(function ($q) {
-                            $q->where('ltd', true);
-                            $q->where('above_10m', true);
-                        });
-                        $query->orWhere(function ($q) {
-                            $q->where('ltd', true);
-                            $q->where('above_10m', false);
-                        });
-                    }
+                    // Above ₦10m the amount flag governs (amount-specific docs,
+                    // ltd-only docs marked above_10m included); at or below it
+                    // the ltd flag does.
+                    $query->orWhere($isAbove10m ? 'above_10m' : 'ltd', true);
                 }
             })
             ->get(['id', 'name', 'required', 'template', 'enterprise', 'ltd', 'above_10m'])
             ->toArray();
+
+        return array_map(static function (array $file): array {
+            $file['required'] = true;
+
+            return $file;
+        }, $files);
     }
 
     /**
