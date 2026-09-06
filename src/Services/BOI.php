@@ -71,6 +71,15 @@ class BOI
 
         $base = config('boi_integrations.boi_thirdparty.cac_verify_base_url');
 
+        // Audit which BOI gateway account each authentication uses (never the
+        // password). Fires only on a cache miss, i.e. once per token lifetime
+        // per fund — enough to confirm e.g. an ADF caller authenticates as ADF.
+        \Illuminate\Support\Facades\Log::info('BOI identity gateway authentication', [
+            'app' => self::callerAppSlug(),
+            'account' => $username,
+            'per_fund_profile' => $cacheKey !== self::CAC_CACHE_KEY,
+        ]);
+
         $response = Http::timeout((int) config('boi_integrations.boi_thirdparty.http_timeout', 120))
             ->connectTimeout(10)
             ->withHeaders(['accept' => '*/*'])

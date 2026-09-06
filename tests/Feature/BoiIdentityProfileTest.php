@@ -3,6 +3,7 @@
 use Boi\Backend\Services\BOI;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 beforeEach(function () {
     Cache::flush();
@@ -43,6 +44,24 @@ it('authenticates a mapped caller (adf) with that fund\'s own gateway account', 
 
     Http::assertSent(fn ($request) => str_ends_with($request->url(), '/Authentication/Authenticate')
         && ($request->data()['username'] ?? null) === 'ADF');
+});
+
+it('audit-logs which gateway account authenticated (account name, never the password)', function () {
+    Log::spy();
+    callAs('adf');
+
+    Http::fake([
+        'cac.example.test:8280/Authentication/Authenticate' => Http::response(['token' => profileJwt(), 'success' => true], 200),
+        'cac.example.test:8280/Verification/verify-business/RC1' => Http::response(['status' => 'found', 'name' => 'ADF CO LTD', 'registrationNumber' => 'RC1'], 200),
+    ]);
+
+    BOI::businessCac('RC1');
+
+    Log::shouldHaveReceived('info')->withArgs(fn ($message, $context = []) => $message === 'BOI identity gateway authentication'
+        && ($context['app'] ?? null) === 'adf'
+        && ($context['account'] ?? null) === 'ADF'
+        && ($context['per_fund_profile'] ?? null) === true
+        && ! array_key_exists('password', $context))->once();
 });
 
 it('falls back to the default account for unmapped callers', function () {
