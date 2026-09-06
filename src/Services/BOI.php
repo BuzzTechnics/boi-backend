@@ -51,20 +51,25 @@ class BOI
      * The CAC verification gateway runs its own auth at /Authentication/Authenticate
      * with field name `username` (not `emailOrUserName`) and returns
      * `{"token", "success", ...}`. Same prod credentials as the Rubikon API.
+     *
+     * BOI provisions one gateway account per consuming application, so the
+     * credentials are resolved per-caller: a fund mapped in
+     * boi_integrations.boi_thirdparty.identity_profiles (keyed by the X-Boi-App
+     * slug) authenticates as its own account and each profile's token is cached
+     * under its own key so profiles never clobber each other. Unmapped callers
+     * use the default account (username_prod/password_prod), unchanged.
      */
     public static function getCacToken(): string
     {
-        $cachedToken = Cache::get(self::CAC_CACHE_KEY);
+        [$cacheKey, $username, $password] = self::resolveCacProfile();
+
+        $cachedToken = Cache::get($cacheKey);
 
         if ($cachedToken !== null && self::isValidToken($cachedToken)) {
             return $cachedToken;
         }
 
         $base = config('boi_integrations.boi_thirdparty.cac_verify_base_url');
-        $username = config('boi_integrations.boi_thirdparty.username_prod')
-            ?? config('boi_integrations.boi_thirdparty.username');
-        $password = config('boi_integrations.boi_thirdparty.password_prod')
-            ?? config('boi_integrations.boi_thirdparty.password');
 
         $response = Http::timeout((int) config('boi_integrations.boi_thirdparty.http_timeout', 120))
             ->connectTimeout(10)
@@ -84,9 +89,70 @@ class BOI
         $token = trim((string) $response['token']);
 
         $hours = (int) config('boi_integrations.boi_thirdparty.token_cache_ttl_hours', 12);
-        Cache::put(self::CAC_CACHE_KEY, $token, now()->addHours(max(1, $hours)));
+        Cache::put($cacheKey, $token, now()->addHours(max(1, $hours)));
 
         return $token;
+    }
+
+    /**
+     * Pick the IdentityVerification.API gateway credentials for the current
+     * caller and the cache key its token lives under. A caller whose X-Boi-App
+     * slug is mapped in `identity_profiles` with a non-empty username AND
+     * password gets its own account (cache key suffixed with the slug);
+     * everyone else gets the default account under the shared CAC cache key —
+     * identical to the pre-profiles behaviour.
+     *
+     * @return array{0: string, 1: ?string, 2: ?string} [cacheKey, username, password]
+     */
+    private static function resolveCacProfile(): array
+    {
+        $defaultUsername = config('boi_integrations.boi_thirdparty.username_prod')
+            ?? config('boi_integrations.boi_thirdparty.username');
+        $defaultPassword = config('boi_integrations.boi_thirdparty.password_prod')
+            ?? config('boi_integrations.boi_thirdparty.password');
+
+        $slug = self::callerAppSlug();
+        if ($slug !== null) {
+            $profile = config('boi_integrations.boi_thirdparty.identity_profiles.'.$slug);
+            $username = is_array($profile) ? ($profile['username'] ?? null) : null;
+            $password = is_array($profile) ? ($profile['password'] ?? null) : null;
+            if (is_string($username) && $username !== '' && is_string($password) && $password !== '') {
+                return [self::CAC_CACHE_KEY.':'.$slug, $username, $password];
+            }
+        }
+
+        return [self::CAC_CACHE_KEY, $defaultUsername, $defaultPassword];
+    }
+
+    /**
+     * Cache key the current caller's CAC/identity gateway token lives under, so
+     * a 401 retry invalidates the right profile's token (not just the default).
+     */
+    private static function currentCacCacheKey(): string
+    {
+        return self::resolveCacProfile()[0];
+    }
+
+    /**
+     * The originating fund's app slug, taken from the X-Boi-App header the proxy
+     * / integrations client forwards. Mirrors BvnNinCallLogger::projectName so
+     * credential selection and call attribution key off the same signal. The
+     * package default 'app' is treated as unset. Null for direct calls / jobs.
+     */
+    private static function callerAppSlug(): ?string
+    {
+        if (! function_exists('request')) {
+            return null;
+        }
+
+        $appHeader = (string) config('boi_proxy.app_header', 'X-Boi-App');
+        $caller = request()?->header($appHeader);
+
+        if (is_string($caller) && $caller !== '' && strtolower($caller) !== 'app') {
+            return strtolower($caller);
+        }
+
+        return null;
     }
 
     private static function isValidToken(string $token): bool
@@ -153,7 +219,7 @@ class BOI
 
         if ($response->status() === 401) {
             // Stale cached gateway token: mint a fresh one and retry once.
-            Cache::forget(self::CAC_CACHE_KEY);
+            Cache::forget(self::currentCacCacheKey());
             $response = $record();
         }
 
@@ -213,7 +279,7 @@ class BOI
             return $call();
         } catch (RequestException $e) {
             if ($e->response !== null && $e->response->status() === 401) {
-                Cache::forget(self::CAC_CACHE_KEY);
+                Cache::forget(self::currentCacCacheKey());
 
                 return $call();
             }
