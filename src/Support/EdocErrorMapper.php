@@ -36,8 +36,16 @@ final class EdocErrorMapper
             }
         }
 
-        // No known pattern — surface the cleaned raw eDoc message so the
-        // customer still sees the actual reason rather than a canned line.
+        // No known pattern. The body is only worth repeating when it is eDoc's own
+        // JSON — the other things that arrive here are a gateway's HTML error page
+        // or a transport error, and neither is a sentence a customer can act on.
+        // Echoing one put "<html><head><title>502 Server Error</title>…" on an
+        // applicant's screen under "Bank statement status: Failed", truncated
+        // mid-tag (BOI, 2026-09-17).
+        if (! self::looksLikeJson($rawBody)) {
+            return $fallback;
+        }
+
         $message = self::extractMessage($rawBody);
 
         return $message === '' ? $fallback : self::clean($message);
@@ -56,6 +64,14 @@ final class EdocErrorMapper
     private static function rules(): array
     {
         return [
+            [
+                // The service itself is down rather than rejecting the statement.
+                // eDoc sits behind a gateway that answers with an HTML error page,
+                // so these are matched before anything that reads the body as a
+                // rejection reason.
+                ['502 server error', 'bad gateway', 'gateway time-out', 'gateway timeout', '503 service', 'service unavailable', 'temporarily unavailable'],
+                'The bank statement service is not responding at the moment. Please try again in a few minutes.',
+            ],
             [
                 // Observed eDoc wordings for "nothing could be parsed":
                 //  - /consent/metrics 404: "No data available for the selected period"
@@ -126,6 +142,17 @@ final class EdocErrorMapper
         }
 
         return $rawBody;
+    }
+
+    /**
+     * eDoc answers with JSON; a gateway in front of it answers with HTML, and a
+     * transport failure has no body at all. Only the first is worth quoting back.
+     */
+    private static function looksLikeJson(?string $rawBody): bool
+    {
+        $trimmed = ltrim((string) $rawBody);
+
+        return str_starts_with($trimmed, '{') || str_starts_with($trimmed, '[');
     }
 
     private static function clean(string $message): string
