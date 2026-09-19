@@ -2,6 +2,7 @@
 
 namespace Boi\Backend\Sla\Models;
 
+use Boi\Backend\Sla\Models\Concerns\StoresSlaRecords;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -13,6 +14,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class SlaNotificationLog extends Model
 {
+    use StoresSlaRecords;
+
     public $timestamps = false;
 
     protected $table = 'boi_sla_notification_logs';

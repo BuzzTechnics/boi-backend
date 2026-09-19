@@ -56,6 +56,17 @@ Nova resources are included and left for the portal to register and gate:
 `Boi\Backend\Nova\SlaDefinition` (editable), `SlaTracker` and `SlaNotificationLog`
 (read-only).
 
+## One fund or all of them
+
+By default each portal keeps its own SLA tables. Point `BOI_SLA_CONNECTION` at
+boi-api's connection and all three move there, told apart by the `app` column — one
+place to see every fund's clocks and escalations, and one report for the programme.
+boi-api installs this package, so its own migrate creates the tables.
+
+It is a separate setting from `boi_api.eloquent_connection` on purpose: reading shared
+reference data from boi-api is not the same decision as keeping your audit trail
+there.
+
 ## The trail
 
 Every reminder and escalation attempt is recorded in `boi_sla_notification_logs` —

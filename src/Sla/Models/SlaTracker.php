@@ -2,6 +2,7 @@
 
 namespace Boi\Backend\Sla\Models;
 
+use Boi\Backend\Sla\Models\Concerns\StoresSlaRecords;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class SlaTracker extends Model
 {
+    use StoresSlaRecords;
+
     public const TYPE_OWNER = 'owner';
 
     public const TYPE_ASSIGNMENT = 'assignment';
