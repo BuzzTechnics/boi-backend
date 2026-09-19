@@ -16,6 +16,13 @@ return [
     // Names this portal in shared tables, so one report can cover every fund.
     'app' => env('BOI_APP', env('APP_NAME')),
 
+    // Where the SLA tables live. Null keeps them on the portal's own database;
+    // naming a connection — boi-api's — puts every fund's clocks and escalations in
+    // one place, told apart by the `app` column above. Its own setting on purpose: a
+    // portal reading shared reference data from boi-api has not thereby agreed to
+    // keep its audit trail there.
+    'connection' => env('BOI_SLA_CONNECTION'),
+
     'workday' => [
         'start_hour' => (int) env('BOI_SLA_WORKDAY_START_HOUR', 8),
         'end_hour' => (int) env('BOI_SLA_WORKDAY_END_HOUR', 16),

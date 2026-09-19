@@ -2,6 +2,7 @@
 
 namespace Boi\Backend\Sla\Models;
 
+use Boi\Backend\Sla\Models\Concerns\StoresSlaRecords;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class SlaDefinition extends Model
 {
+    use StoresSlaRecords;
+
     protected $table = 'boi_sla_definitions';
 
     protected $fillable = [
