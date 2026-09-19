@@ -3,7 +3,14 @@
 namespace Boi\Backend;
 
 use Boi\Backend\Console\Commands\FixPostgresSequences;
+use Boi\Backend\Console\Commands\SlaCheck;
+use Boi\Backend\Sla\BusinessCalendar;
+use Boi\Backend\Sla\Listeners\LogSlaNotification;
+use Boi\Backend\Sla\Support\SlaDefinitions;
 use Boi\Backend\Http\Middleware\TrustedSources;
+use Illuminate\Notifications\Events\NotificationFailed;
+use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -20,6 +27,12 @@ class BoiBackendServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/boi_edoc.php', 'boi_edoc');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_files.php', 'boi_files');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_integrations.php', 'boi_integrations');
+        $this->mergeConfigFrom(__DIR__.'/../config/boi_sla.php', 'boi_sla');
+
+        // Definitions are read repeatedly while the engine walks its trackers, and
+        // they cannot change mid-run.
+        $this->app->singleton(SlaDefinitions::class);
+        $this->app->singleton(BusinessCalendar::class);
     }
 
     public function boot(): void
@@ -29,6 +42,7 @@ class BoiBackendServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 FixPostgresSequences::class,
+                SlaCheck::class,
             ]);
         }
 
@@ -59,6 +73,16 @@ class BoiBackendServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../config/boi_integrations.php' => config_path('boi_integrations.php'),
         ], 'boi-backend-integrations');
+
+        $this->publishes([
+            __DIR__.'/../config/boi_sla.php' => config_path('boi_sla.php'),
+        ], 'boi-backend-sla');
+
+        // BRD §5.4-01. Registered here rather than left to a portal, so no fund can
+        // run the engine without its trail; the listener is a no-op for every other
+        // notification.
+        Event::listen(NotificationSent::class, LogSlaNotification::class);
+        Event::listen(NotificationFailed::class, LogSlaNotification::class);
 
         $this->mergeConfigFrom(__DIR__.'/../config/banks.php', 'banks');
 
