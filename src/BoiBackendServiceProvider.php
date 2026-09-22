@@ -28,6 +28,7 @@ class BoiBackendServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/boi_files.php', 'boi_files');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_integrations.php', 'boi_integrations');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_sla.php', 'boi_sla');
+        $this->mergeConfigFrom(__DIR__.'/../config/boi_document_library.php', 'boi_document_library');
 
         // Definitions are read repeatedly while the engine walks its trackers, and
         // they cannot change mid-run.
@@ -78,6 +79,10 @@ class BoiBackendServiceProvider extends ServiceProvider
             __DIR__.'/../config/boi_sla.php' => config_path('boi_sla.php'),
         ], 'boi-backend-sla');
 
+        $this->publishes([
+            __DIR__.'/../config/boi_document_library.php' => config_path('boi_document_library.php'),
+        ], 'boi-backend-document-library');
+
         // BRD §5.4-01. Registered here rather than left to a portal, so no fund can
         // run the engine without its trail; the listener is a no-op for every other
         // notification.
@@ -109,6 +114,19 @@ class BoiBackendServiceProvider extends ServiceProvider
                 ->prefix('api')
                 ->group(function (): void {
                     BoiBackend::fileRoutes([]);
+                });
+        }
+
+        // Inbound document-library webhooks (workflow → portal). Auth is the shared
+        // secret inside the request, so these ride the bare 'api' middleware.
+        if (config('boi_document_library.register_webhook_routes', true)) {
+            Route::middleware('api')
+                ->prefix((string) config('boi_document_library.webhook_prefix', 'api/webhooks/document-library'))
+                ->controller(\Boi\Backend\DocumentLibrary\Http\Controllers\DocumentWebhookController::class)
+                ->name('document-library.webhook.')
+                ->group(function (): void {
+                    Route::post('request', 'requestDocuments')->name('request');
+                    Route::post('review', 'reviewDocuments')->name('review');
                 });
         }
     }

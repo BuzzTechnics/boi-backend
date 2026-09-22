@@ -2,6 +2,7 @@
 
 namespace Boi\Backend;
 
+use Boi\Backend\DocumentLibrary\Http\Controllers\DocumentLibraryController;
 use Boi\Backend\Http\Controllers\BoiApiProxyController;
 use Boi\Backend\Http\Controllers\FileController;
 use Illuminate\Support\Facades\Route;
@@ -39,6 +40,29 @@ final class BoiBackend
             ->group(function (): void {
                 Route::post('upload', 'upload')->name('api.files.upload');
                 Route::get('view', 'view')->name('api.files.view');
+            });
+    }
+
+    /**
+     * Register the customer document-library endpoints relative to the current route
+     * group. A fund mounts these behind its own auth, e.g.:
+     *
+     *   Route::middleware(['auth:sanctum', ...])->prefix('dashboard')->group(function () {
+     *       BoiBackend::documentLibraryRoutes();
+     *   });
+     *
+     * @param  array<int, string|\Closure|class-string>  $middleware
+     */
+    public static function documentLibraryRoutes(array $middleware = [], string $prefix = 'document-library'): void
+    {
+        Route::prefix($prefix)
+            ->middleware($middleware)
+            ->controller(DocumentLibraryController::class)
+            ->name('document-library.')
+            ->group(function (): void {
+                Route::get('/', 'index')->name('index');
+                Route::post('{documentRequest}/documents/{document}/upload', 'upload')->name('upload');
+                Route::post('{documentRequest}/submit', 'submit')->name('submit');
             });
     }
 }
