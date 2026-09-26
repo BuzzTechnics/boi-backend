@@ -47,6 +47,83 @@ class BOI
         return $token;
     }
 
+    /** Host that serves the Employee/AD endpoints (falls back to the API base). */
+    public static function activeDirectoryBaseUrl(): string
+    {
+        return (string) (config('boi_integrations.active_directory.base_url')
+            ?: config('boi_integrations.boi_thirdparty.api_base_url'));
+    }
+
+    /**
+     * Bearer token for the Active Directory / Employee endpoints. Authenticates
+     * against the AD host with the AD credentials, or the shared third-party prod
+     * credentials when none are set. Cached per host so it never clobbers the
+     * general third-party token.
+     */
+    public static function activeDirectoryToken(): string
+    {
+        $base = self::activeDirectoryBaseUrl();
+        $cacheKey = self::CACHE_KEY.':ad:'.md5($base);
+
+        $cached = Cache::get($cacheKey);
+
+        if ($cached !== null && self::isValidToken($cached)) {
+            return $cached;
+        }
+
+        $username = config('boi_integrations.active_directory.username')
+            ?? config('boi_integrations.boi_thirdparty.username_prod')
+            ?? config('boi_integrations.boi_thirdparty.username');
+        $password = config('boi_integrations.active_directory.password')
+            ?? config('boi_integrations.boi_thirdparty.password_prod')
+            ?? config('boi_integrations.boi_thirdparty.password');
+
+        $token = trim(Http::withHeaders([
+            'content-type' => 'application/json',
+            'accept' => '*/*',
+        ])
+            ->timeout((int) config('boi_integrations.boi_thirdparty.http_timeout', 120))
+            ->post($base.'/api/Authentication/Authenticate', [
+                'emailOrUserName' => $username,
+                'password' => $password,
+            ])
+            ->throw()
+            ->body());
+
+        $hours = (int) config('boi_integrations.active_directory.token_cache_ttl_hours', 6);
+        Cache::put($cacheKey, $token, now()->addHours(max(1, $hours)));
+
+        return $token;
+    }
+
+    /**
+     * Search BOI's Active Directory for staff whose name/username matches $searchText.
+     *
+     * Returns the raw `data` array; each entry looks like: samAccountName, employeeId,
+     * email, displayName, department, mobileNumber, managerUsername, managerEmail, role.
+     * AD also holds service/security/machine accounts — filtering to assignable humans
+     * is \Boi\Backend\Support\ActiveDirectoryStaff's job, not this method's.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function searchUsersActiveDirectory(string $searchText): array
+    {
+        $base = self::activeDirectoryBaseUrl();
+
+        $response = Http::timeout((int) config('boi_integrations.boi_thirdparty.http_timeout', 120))
+            ->withToken(self::activeDirectoryToken())
+            ->withHeaders(['accept' => '*/*'])
+            ->get($base.'/api/Employee/SearchUsersActiveDirectory', [
+                'searchText' => $searchText,
+            ])
+            ->throw()
+            ->json();
+
+        $data = $response['data'] ?? [];
+
+        return is_array($data) ? $data : [];
+    }
+
     /**
      * The CAC verification gateway runs its own auth at /Authentication/Authenticate
      * with field name `username` (not `emailOrUserName`) and returns
