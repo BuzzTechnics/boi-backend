@@ -68,4 +68,20 @@ class BvnNinCall extends Model
             'created_at' => 'datetime',
         ];
     }
+
+    /**
+     * Scope every read to the host portal's own project — the bvn_nin_calls table is
+     * shared across intervention funds, so without this an admin sees every fund's
+     * calls. Mirrors EdocCall: filter by BOI_APP (config boi_proxy.app); the default
+     * 'app' means unconfigured, so leave it unscoped. Writes are unaffected.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('currentApp', function ($query) {
+            $app = (string) config('boi_proxy.app', 'app');
+            if ($app !== '' && strtolower($app) !== 'app') {
+                $query->where($query->getModel()->getTable().'.project', $app);
+            }
+        });
+    }
 }

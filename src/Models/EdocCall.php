@@ -61,4 +61,23 @@ class EdocCall extends Model
             'created_at' => 'datetime',
         ];
     }
+
+    /**
+     * Scope every read to the host portal's own project. The edoc_calls table is
+     * shared across intervention funds (glow / spaf / adf / …), so without this an
+     * admin sees every fund's calls. Each portal sets BOI_APP (config boi_proxy.app)
+     * and its own outbound calls are logged under that slug (see EdocCallLogger), so
+     * filtering by it shows only this portal's calls. The default 'app' means the
+     * connection is unconfigured (e.g. boi-api itself) — leave those unscoped rather
+     * than hide everything. Writes are unaffected (global scopes apply to reads only).
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope('currentApp', function ($query) {
+            $app = (string) config('boi_proxy.app', 'app');
+            if ($app !== '' && strtolower($app) !== 'app') {
+                $query->where($query->getModel()->getTable().'.project', $app);
+            }
+        });
+    }
 }
