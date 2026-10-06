@@ -80,7 +80,7 @@ class MonnifyBanks
             $banks[] = ['code' => (string) $code, 'name' => trim((string) $name)];
         }
 
-        self::upsertBanks($bankModel, $banks);
+        self::upsertBanks($bankModel, $banks, (bool) config('banks.prune', true));
 
         return true;
     }

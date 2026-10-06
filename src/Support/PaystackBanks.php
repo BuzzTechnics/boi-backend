@@ -51,7 +51,7 @@ class PaystackBanks
             $banks[] = ['code' => (string) $code, 'name' => (string) $name];
         }
 
-        self::upsertBanks($bankModel, $banks);
+        self::upsertBanks($bankModel, $banks, (bool) config('banks.prune', true));
 
         return true;
     }

@@ -85,6 +85,46 @@ it('syncs from Paystack when provider is paystack (default)', function () {
     expect(SyncTestBank::where('code', '51341')->value('name'))->toBe('Bankly MFB');
 });
 
+it('prunes codes the provider no longer returns (mirror sync)', function () {
+    config()->set('banks.provider', 'paystack');
+    config()->set('banks.prune', true);
+
+    // a stale row from a previous/other provider
+    SyncTestBank::create(['name' => 'Old MFB', 'code' => 'STALE999', 'short_name' => 'Old']);
+
+    Http::fake([
+        'api.paystack.co/bank' => Http::response([
+            'status' => true,
+            'data' => [['name' => 'Zenith Bank', 'code' => '057']],
+        ], 200),
+    ]);
+
+    Banks::sync(SyncTestBank::class);
+
+    expect(SyncTestBank::where('code', 'STALE999')->exists())->toBeFalse();
+    expect(SyncTestBank::where('code', '057')->exists())->toBeTrue();
+    expect(SyncTestBank::count())->toBe(1);
+});
+
+it('keeps stale rows when prune is disabled', function () {
+    config()->set('banks.provider', 'paystack');
+    config()->set('banks.prune', false);
+
+    SyncTestBank::create(['name' => 'Old MFB', 'code' => 'STALE999', 'short_name' => 'Old']);
+
+    Http::fake([
+        'api.paystack.co/bank' => Http::response([
+            'status' => true,
+            'data' => [['name' => 'Zenith Bank', 'code' => '057']],
+        ], 200),
+    ]);
+
+    Banks::sync(SyncTestBank::class);
+
+    expect(SyncTestBank::where('code', 'STALE999')->exists())->toBeTrue();
+    expect(SyncTestBank::count())->toBe(2);
+});
+
 it('fails cleanly when Monnify credentials are missing', function () {
     config()->set('banks.provider', 'monnify');
     config()->set('banks.monnify', ['base_url' => 'https://api.monnify.com', 'api_key' => null, 'secret_key' => null]);

@@ -73,14 +73,19 @@ trait SyncsBankList
     }
 
     /**
-     * Upsert normalised rows into the bank model.
+     * Upsert normalised rows into the bank model. When $prune is true, codes not
+     * present in $banks are removed, so the table mirrors the provider's list
+     * exactly (bank codes are provider-specific, so a leftover code from another
+     * provider would be selectable but unverifiable).
      *
      * @param  class-string<\Illuminate\Database\Eloquent\Model>  $bankModel
      * @param  iterable<array{code: string, name: string}>  $banks
      */
-    protected static function upsertBanks(string $bankModel, iterable $banks): void
+    protected static function upsertBanks(string $bankModel, iterable $banks, bool $prune = false): void
     {
         self::ensurePostgresSerialNotBehindMaxId($bankModel);
+
+        $freshCodes = [];
 
         foreach ($banks as $bank) {
             $code = $bank['code'] ?? null;
@@ -96,6 +101,29 @@ trait SyncsBankList
                     'short_name' => self::resolveShortName((string) $code, (string) $name),
                 ]
             );
+
+            $freshCodes[] = (string) $code;
+        }
+
+        if ($prune && $freshCodes !== []) {
+            self::pruneMissingCodes($bankModel, $freshCodes);
+        }
+    }
+
+    /**
+     * Delete bank rows whose code is not in the provider's current list.
+     *
+     * @param  class-string<\Illuminate\Database\Eloquent\Model>  $bankModel
+     * @param  array<int, string>  $keepCodes
+     */
+    protected static function pruneMissingCodes(string $bankModel, array $keepCodes): void
+    {
+        $query = $bankModel::query()->whereNotIn('code', $keepCodes);
+
+        if (in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, class_uses_recursive($bankModel), true)) {
+            $query->forceDelete();
+        } else {
+            $query->delete();
         }
     }
 
