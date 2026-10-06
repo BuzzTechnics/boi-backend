@@ -29,6 +29,7 @@ class BoiBackendServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/boi_integrations.php', 'boi_integrations');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_sla.php', 'boi_sla');
         $this->mergeConfigFrom(__DIR__.'/../config/boi_document_library.php', 'boi_document_library');
+        $this->mergeConfigFrom(__DIR__.'/../config/banks.php', 'banks');
 
         // Definitions are read repeatedly while the engine walks its trackers, and
         // they cannot change mid-run.
