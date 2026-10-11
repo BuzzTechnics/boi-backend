@@ -48,4 +48,24 @@ return [
     */
     'project' => env('BOI_BACKEND_PROJECT'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Decline reversal (maker-checker)
+    |--------------------------------------------------------------------------
+    |
+    | A declined application can only be reopened (declined → returned) through
+    | a reversal request raised by a maker and approved by a different checker.
+    | See Boi\Backend\Services\DeclineReversalService.
+    |
+    | A user must hold one of the roles AND the permission. Roles are matched by
+    | name via the app User's hasRoleName() (falling back to Spatie hasRole()).
+    |
+    */
+    'decline_reversal' => [
+        'maker_roles' => ['Admin'],
+        'maker_permission' => 'decline_reversal_request',
+        'checker_roles' => ['Super Admin'],
+        'checker_permission' => 'decline_reversal_approve',
+    ],
+
 ];

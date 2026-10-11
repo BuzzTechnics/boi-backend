@@ -28,22 +28,9 @@ class ReturnApplication extends Action
 
     public function handle(ActionFields $fields, Collection $models)
     {
-        $application = $models->first();
-
-        $canReturnFromSharepoint = $application->status === ApplicationStatus::INCOMPLETE
-            && $application->internal_status === ApplicationStatus::RETURN_FROM_SHAREPOINT;
-
-        if ($application->status === ApplicationStatus::INCOMPLETE && ! $canReturnFromSharepoint) {
-            throw new Exception('Cannot return: Application is incomplete', 401);
-        }
-
-        if ($application->status === ApplicationStatus::APPROVED) {
-            throw new Exception('Cannot return: Application already approved', 401);
-        }
-
-        if ($application->status === ApplicationStatus::DECLINED) {
-            throw new Exception('Cannot return: Application already declined', 401);
-        }
+        // Validate every selected application before changing any: sole() is
+        // only enforced by the Nova UI, not by the action endpoint.
+        $models->each(fn ($application) => $this->assertReturnable($application));
 
         $models->each(function ($model) use ($fields) {
             $model->update([
@@ -58,19 +45,47 @@ class ReturnApplication extends Action
         );
     }
 
+    /**
+     * A declined application is never returned here: reopening it needs an
+     * approved decline reversal ({@see RequestDeclineReversal}).
+     */
+    protected function assertReturnable($application): void
+    {
+        $canReturnFromSharepoint = $application->status === ApplicationStatus::INCOMPLETE
+            && $application->internal_status === ApplicationStatus::RETURN_FROM_SHAREPOINT;
+
+        if ($application->status === ApplicationStatus::INCOMPLETE && ! $canReturnFromSharepoint) {
+            throw new Exception('Cannot return: Application is incomplete', 401);
+        }
+
+        if ($application->status === ApplicationStatus::APPROVED) {
+            throw new Exception('Cannot return: Application already approved', 401);
+        }
+
+        if ($application->status === ApplicationStatus::DECLINED) {
+            throw new Exception('Cannot return: Application already declined. Use "Request Decline Reversal"; it requires Super Admin approval.', 401);
+        }
+    }
+
+    /** Customer-facing return reasons, shared with {@see RequestDeclineReversal}. */
+    public static function returnReasonOptions(): array
+    {
+        return [
+            'Incomplete Documentation' => 'Incomplete Documentation',
+            'Missing Required Information' => 'Missing Required Information',
+            'Incorrect Information Provided' => 'Incorrect Information Provided',
+            'Additional Documents Required' => 'Additional Documents Required',
+            'Business Plan Needs Revision' => 'Business Plan Needs Revision',
+            'Financial Information Incomplete' => 'Financial Information Incomplete',
+            'Other' => 'Other',
+        ];
+    }
+
     public function fields(NovaRequest $request)
     {
         return [
             Select::make('Rejection Reason', 'rejection_reason')
-                ->options([
-                    'Incomplete Documentation' => 'Incomplete Documentation',
-                    'Missing Required Information' => 'Missing Required Information',
-                    'Incorrect Information Provided' => 'Incorrect Information Provided',
-                    'Additional Documents Required' => 'Additional Documents Required',
-                    'Business Plan Needs Revision' => 'Business Plan Needs Revision',
-                    'Financial Information Incomplete' => 'Financial Information Incomplete',
-                    'Other' => 'Other',
-                ])
+                ->options(static::returnReasonOptions())
                 ->rules('required'),
 
             Textarea::make('Additional Comments', 'comments')
