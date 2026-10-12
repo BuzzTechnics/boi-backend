@@ -32,6 +32,8 @@ class StatusChangeRequest extends Model
 {
     public const TYPE_DECLINE_REVERSAL = 'decline_reversal';
 
+    public const TYPE_RETURN = 'return';
+
     protected $table = 'status_change_requests';
 
     /**
