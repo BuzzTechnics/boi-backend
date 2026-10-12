@@ -88,6 +88,10 @@ beforeEach(function () {
     });
 
     config()->set('auth.providers.users.model', ReversalTestUser::class);
+    // Pin the roles this suite assumes (Admin maker / Super Admin checker) so it
+    // is independent of the shipped default, which apps configure per fund.
+    config()->set('boi_backend.decline_reversal.maker_roles', ['Admin']);
+    config()->set('boi_backend.decline_reversal.checker_roles', ['Super Admin']);
     Queue::fake();
     Event::fake([DeclineReversalRequested::class, DeclineReversalApproved::class, DeclineReversalRejected::class]);
 
