@@ -48,4 +48,41 @@ return [
     */
     'project' => env('BOI_BACKEND_PROJECT'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Decline reversal (maker-checker)
+    |--------------------------------------------------------------------------
+    |
+    | A declined application can only be reopened (declined → returned) through
+    | a reversal request raised by a maker and approved by a different checker.
+    | See Boi\Backend\Services\DeclineReversalService. A user must hold one of
+    | the roles AND the permission; a checker may never review a request they
+    | raised.
+    |
+    */
+    'decline_reversal' => [
+        'maker_roles' => ['Monitor'],
+        'maker_permission' => 'decline_reversal_request',
+        'checker_roles' => ['Super Admin'],
+        'checker_permission' => 'decline_reversal_approve',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Return approval (maker-checker)
+    |--------------------------------------------------------------------------
+    |
+    | A maker-checker variant of "Return to Customer": a maker raises a request
+    | to return an under-review application, and a checker approves it. Runs
+    | alongside the direct ReturnApplication action.
+    | See Boi\Backend\Services\ReturnApprovalService.
+    |
+    */
+    'return_approval' => [
+        'maker_roles' => ['Monitor'],
+        'maker_permission' => 'return_request',
+        'checker_roles' => ['Super Admin'],
+        'checker_permission' => 'return_approve',
+    ],
+
 ];
