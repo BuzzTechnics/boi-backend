@@ -45,6 +45,26 @@ class StatusChangeRequestException extends RuntimeException
         return new self('This request type cannot be processed as a decline reversal.');
     }
 
+    public static function notReturnable(string $reason): self
+    {
+        return new self($reason);
+    }
+
+    public static function returnAlreadyPending(): self
+    {
+        return new self('A return request is already pending for this application.');
+    }
+
+    public static function returnStateChanged(): self
+    {
+        return new self('The application is no longer in the state this return request was raised against.');
+    }
+
+    public static function unsupportedReturnType(): self
+    {
+        return new self('This request type cannot be processed as a return.');
+    }
+
     public static function cannotReopen(string $reason): self
     {
         return new self($reason);

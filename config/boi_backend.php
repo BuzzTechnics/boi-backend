@@ -62,10 +62,32 @@ return [
     |
     */
     'decline_reversal' => [
-        'maker_roles' => ['Admin'],
+        'maker_roles' => ['Monitor'],
         'maker_permission' => 'decline_reversal_request',
         'checker_roles' => ['Super Admin'],
         'checker_permission' => 'decline_reversal_approve',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Return approval (maker-checker)
+    |--------------------------------------------------------------------------
+    |
+    | A maker-checker variant of "Return to Customer": a Monitor raises a
+    | request to return an under-review application, and a Super Admin approves
+    | it (the application is then saved as returned, so the app's observer
+    | notifies the applicant exactly as for a direct return). Runs alongside the
+    | direct ReturnApplication action. See Boi\Backend\Services\ReturnApprovalService.
+    |
+    | Same shape as decline_reversal: a user needs one of the roles AND the
+    | permission; a checker may never review a request they raised.
+    |
+    */
+    'return_approval' => [
+        'maker_roles' => ['Monitor'],
+        'maker_permission' => 'return_request',
+        'checker_roles' => ['Super Admin'],
+        'checker_permission' => 'return_approve',
     ],
 
 ];
