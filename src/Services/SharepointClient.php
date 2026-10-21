@@ -18,16 +18,32 @@ class SharepointClient
     /**
      * Power Automate chokes on \r\n — collapse carriage returns across every
      * string value (round-trips through JSON to reach nested values).
+     *
+     * Encoding is tolerant of invalid UTF-8: a single bad byte anywhere in the
+     * payload (e.g. a free-text field whose encoding got mangled, or a prefix
+     * cut mid-multibyte-character upstream) would otherwise make json_encode
+     * return false. This method is typed `: array`, so that false used to flow
+     * through json_decode('') to null and crash the whole submission with a
+     * TypeError. JSON_INVALID_UTF8_SUBSTITUTE replaces bad bytes with U+FFFD so
+     * the send still goes through, and the guards below guarantee an array is
+     * always returned.
      */
     public static function normalizePayload(array $payload): array
     {
-        return json_decode(str_replace('\r\n', '\n', json_encode($payload)), true);
+        $json = json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
+        if ($json === false) {
+            return $payload;
+        }
+
+        $decoded = json_decode(str_replace('\r\n', '\n', $json), true);
+
+        return is_array($decoded) ? $decoded : $payload;
     }
 
-    /** Encode the way Power Automate expects: no escaped slashes/unicode, preserve .0 floats. */
+    /** Encode the way Power Automate expects: no escaped slashes/unicode, preserve .0 floats, tolerate bad UTF-8. */
     public static function encode(array $payload): string
     {
-        return json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION);
+        return json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     /**
